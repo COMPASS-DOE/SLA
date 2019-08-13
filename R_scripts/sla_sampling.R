@@ -27,7 +27,7 @@ randomizer <- function(inventory_list, plot_name) {
   write_csv(random_sampling_list, new_file)
 }
 
-gcrew_transplant <- read_csv("../transplant_inventory.csv")
+gcrew_transplant <- read_csv("../inventory.csv")
 #gcrew_transplant %>% 
 #  select(Plot, tidyselect::starts_with("^HS"), Tag, Species_code, State_2019) -> gcrew
   

@@ -45,14 +45,14 @@ head(sla)
 ## ================ Join with inventory data
 
 ## Read in the storm surge inventory data
-ss_inventory <- read.csv("ss-inventory.csv", stringsAsFactors = FALSE) %>% 
+ss_inventory <- read.csv("ss_inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Species_code, Tag, DBH) %>% 
   mutate(Tag = as.character(Tag))
 summary(ss_inventory)
 
 ## The 'shore' plot at GCREW overlaps with the PREMIS-ghg HSLE plot,
 ## so use that inventory data too
-inventory <- read.csv("transplant_inventory.csv", stringsAsFactors = FALSE) %>% 
+inventory <- read.csv("inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Tag, Species_code, DBH = DBH_cm_2019) %>% 
   filter(Plot == "HSLE") %>%  # GCREW only
   mutate(Plot = "Shore") %>% 
