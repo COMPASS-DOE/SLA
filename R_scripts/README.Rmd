@@ -1,0 +1,53 @@
+---
+title: "Specific leaf area in a coastal temperate deciduous forest: species and salinity effects"
+author: "Lillie Haddock"
+date: "8/13/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE} 
+## Load necessary packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(knitr)
+library(ggrepel)
+library(ggplot2)
+```
+
+## Motivation
+
+Specific leaf area (SLA, the ratio of leaf area to leaf dry mass) is an important trait for plant physiological, structural, and modeling analyses. SLA is also a useful measurement to upscale plant production, vegetation community composition, and other processes in Earth System Models, providing current-day benchmarks and improving predictions of future vegetation structure and function in terrestrial ecosystems.
+
+We investigate SLA differences between plots of varying elevation and salinity exposure along a tributary of the Chesapeake Bay. The goals of this project are to (i) quantify SLA of eight major tree species, at multiple canopy heights, in temperate deciduous forests at the Smithsonian Environmental Research Center (Maryland, USA); and (ii) test for effects of soil moisture and saltwater exposure on SLA by comparing samples taken at shoreline and upland positions, with the shoreline samples taken along a ~2 km tidal creek that provided a natural salinity gradient.
+
+Map of SERC with plots labeled: 
+
+
+## Sampling Design
+
+I think this would be a good place for methods 
+
+```{r, include=FALSE}
+samp_char <- read_csv("../Design/sampling_characteristics.csv")
+```
+```{r, echo = FALSE}
+knitr::kable(samp_char, caption = "Characteristics of Species Sampled")
+```
+
+SLA calculation (in code chunk? idk)
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Results 
+
+### 
+## 
