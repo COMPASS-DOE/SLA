@@ -1,10 +1,10 @@
-# Script to produce a randomly arranged list of trees for SLA sampling
+# Script to produce a randomly arranged list of trees for SLA sampling at transplant plots
 # Created 11 June 2019 | Updated 12 August 2019
 
 library(readr)
 library(dplyr)
 
-inventory_list <- read_csv("../transplant_inventory.csv")
+inventory_list <- read_csv("../inventory.csv")
 
 # We only want live trees for this
 inventory_list %>% 
@@ -26,3 +26,4 @@ inv %>%
 
 # Create new CSV with randomlized list
 write_csv(random_sampling_list, "../transplant_inv_randomized.csv")
+
