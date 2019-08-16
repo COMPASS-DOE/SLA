@@ -7,6 +7,7 @@ library(tidyr)
 library(readr)
 library(ggrepel)
 library(ggplot2)
+theme_set(theme_bw())
 
 ## ================ Read in the SLA csv and make some basic plots
 
@@ -90,9 +91,13 @@ sla_by_plot <- sla_joined %>%
        subtitle = paste("Lillie Haddock", date()))
 print(sla_by_plot)
 
+
+## Join sla_joined with plot species_codes
+sla_joined_names <- left_join(sla_joined, species_codes, by = "Species_code")
 ## SLA by species box plot
-sla_with_tag <- sla_joined %>%
-  ggplot(aes(Species_code, specific_leaf_area, label = Tag, color = Position)) +
+
+sla_with_tag <- sla_joined_names %>%
+  ggplot(aes(Species_common, specific_leaf_area, label = Tag, color = Position)) +
   geom_boxplot() +
   geom_text_repel() +
   geom_point() + 
@@ -111,22 +116,23 @@ sla_with_tag_by_plot <- sla_joined %>%
 print(sla_with_tag_by_plot)
 
 ## SLA faceted by species
-sla_by_species <- sla_joined %>%
+sla_by_species <- sla_joined_names %>%
   ggplot(aes(Plot, specific_leaf_area, color = Position)) +
   geom_point() + 
   geom_jitter() +
-  facet_wrap(~Species_code) +
+  facet_wrap(~Species_common) +
   theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "Specific Leaf Area by Species and Plot", y = "Specific Leaf Area")
+  labs(title = "Specific Leaf Area by Species and Plot", y = "Specific Leaf Area (cm2/g)")
 print(sla_by_species)
 
 ## DBH vs sla colored by species
-sla_vs_dbh <- sla_joined %>% 
-  ggplot(aes(DBH, specific_leaf_area, color = Species_code)) +
+sla_vs_dbh <- sla_joined_names %>% 
+  ggplot(aes(DBH, specific_leaf_area, color = Species_common)) +
   geom_point() + 
-  facet_wrap(~Species_code) +
+  facet_wrap(~Species_common) +
   geom_smooth(method = "lm") +
-  labs(title = "Specific Leaf Area vs. DBH", y = "Specific Leaf Area")
+  labs(title = "Specific Leaf Area vs. Tree Diameter", y = "Specific Leaf Area (cm2/g)", x = "Diameter at Breast Height (cm)",
+       color = "Species")
 print(sla_vs_dbh)
 
 ## leaves vs mass
@@ -155,12 +161,17 @@ sla_vs_position <- sla_joined %>%
 print(sla_vs_position)
 
 ## average sla of each species
-sla_averages <- sla_joined %>%
-  group_by(Species_code) %>%
-  summarise(sla_mean_species = mean(specific_leaf_area))
-sla_averages_plot <- sla_averages %>% 
-  ggplot(aes(Species_code, sla_mean_species)) +
-  geom_point()
+sla_averages <- try_dataset %>%
+  group_by(`Species Common`) %>%
+  summarise(sla_mean_species = mean(`Specific Leaf Area (cm2/g)`))
+
+sla_averages_plot <- try_dataset %>% 
+  ggplot(aes(`Species Common`, `Specific Leaf Area (cm2/g)`)) +
+  labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
+  geom_boxplot(aes(fill = `Species Common`)) + 
+  #geom_text(aes(label = round(Specific, 2)), vjust = 1.6, size = 3.3) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  guides(fill=guide_legend(title="Species"))
 print(sla_averages_plot)
 
 sla_joined %>% 
@@ -202,3 +213,28 @@ try_dataset <- sla_joined %>%
 write.csv(try_dataset, "Haddock_SLA_20190628.csv")
  
          
+## ------ Table for Final SULI Report -------
+
+try_dataset %>% 
+  select(`Species`, `Species Common`, `Diameter at Breast Height (cm)`) %>% 
+  group_by(`Species`, `Species Common`) %>% 
+  summarise("Number of Trees Sampled" = n(), "Average Diameter (cm)" = mean(`Diameter at Breast Height (cm)`)) %>% 
+  kable(format = "markdown") 
+
+
+## ------ Averages for final SULI Report -------
+
+averages <- try_dataset %>%
+  select(`Species Common`, `Leaf Position`, `Specific Leaf Area (cm2/g)`) %>% 
+  group_by(`Species Common`, `Leaf Position`) %>% 
+  summarise("Average SLA per Leaf Position" = mean(`Specific Leaf Area (cm2/g)`))
+  mutate("Difference in Average SLA" = )
+write.csv(averages, "SLA_Averages_position.csv")
+  
+  
+  
+  
+  
+  
+
+
