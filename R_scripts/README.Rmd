@@ -101,29 +101,19 @@ sla_joined_names <- left_join(sla_joined_simple, species_codes, by = "Species_co
 
 ### Average Specific Leaf Area
 ```{r, echo = FALSE}
-<<<<<<< HEAD
-## SLA by species box plot
-sla_averages_plot <- try_dataset %>% 
-  ggplot(aes(`Species Common`, `Specific Leaf Area (cm2/g)`)) +
-  labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") + 
-  geom_boxplot(aes(fill = `Species Common`)) + 
-=======
 #SLA Box Plot
 sla_averages_plot <- sla_joined_names %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
   labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
   geom_boxplot(aes(fill = Species_common)) + 
->>>>>>> a3f4722df12acb169763b85a2226fb877cd245f2
   #geom_text(aes(label = round(Specific, 2)), vjust = 1.6, size = 3.3) +
   theme(axis.text.x = element_text(angle = 90)) +
   guides(fill=guide_legend(title="Species"))
 print(sla_averages_plot)
-<<<<<<< HEAD
 
 sla_joined %>% 
   ggplot(aes(Species_code, specific_leaf_area, color = Position)) +
   geom_boxplot()
-=======
 ```
 
 ### Specific Leaf Area by Plot
@@ -135,7 +125,6 @@ sla_by_plot <- sla_joined_names %>%
   theme(axis.text.x = element_text(angle = 90)) +
   labs(title = "Specific Leaf Area by Plot", x = "Species", y = "Specific Leaf Area")
 print(sla_by_plot)
->>>>>>> a3f4722df12acb169763b85a2226fb877cd245f2
 ```
 
 ### Specific Leaf Area by Species

@@ -87,8 +87,6 @@ sla_by_plot <- sla_joined_names %>%
   labs(title = "Specific Leaf Area by Plot", x = "Species", y = "Specific Leaf Area")
 print(sla_by_plot)
 
-<<<<<<< HEAD
-
 ## Join sla_joined with plot species_codes
 sla_joined_names <- left_join(sla_joined, species_code, by = "Species_code")
 ## SLA by species box plot
@@ -101,14 +99,9 @@ sla_with_tag <- sla_joined_names %>%
   labs(title = "Specific Leaf Area by Species and Tag Number", y = "Specific Leaf Area")
 print(sla_with_tag)
 
-## SLA by species faceting by plot
-sla_with_tag_by_plot <- sla_joined %>%
-  ggplot(aes(Species_code, specific_leaf_area, label = Tag, color = Position)) +
-=======
 ## SLA by species and position box plot
 sla_by_position <- sla_joined_names %>%
   ggplot(aes(Species_common, specific_leaf_area, color = Position)) +
->>>>>>> a3f4722df12acb169763b85a2226fb877cd245f2
   geom_boxplot() +
   labs(title = "Specific Leaf Area by Species", x = "Species", y = "Specific Leaf Area") +
   theme(axis.text.x = element_text(angle = 90))
