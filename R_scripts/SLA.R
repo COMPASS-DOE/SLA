@@ -7,53 +7,33 @@ library(tidyr)
 library(readr)
 library(ggrepel)
 library(ggplot2)
+library(knitr)
 theme_set(theme_bw())
 
-## ================ Read in the SLA csv and make some basic plots
+## ----- Read in the SLA csv -----
 
-sla <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
+sla <- read.csv("../SLA Data.csv", stringsAsFactors = FALSE) %>% 
   mutate(Tag = as.character(Tag))
 print(sla)
 print(summary(sla))
 
-# Simple plot comparing number of leaves to the corresponding leaf area
-p <- qplot(n_Leaves, Leaf_Area_cm2, data = sla)
-print(p)
+## ----- Create SLA column -----
 
-# Plot comparing number of leaves to corresponding leaf area, color by date but pretty!
-leaves_v_area <- ggplot(data = sla, aes(n_Leaves, Leaf_Area_cm2, color = Date)) +
-  geom_point() +
-  geom_jitter()+
-  labs(title = "Number of Leaves vs. Leaf Area", 
-       subtitle = paste("Lillie Haddock", date()), 
-       x = "Number of Leaves Per Sample", y = "Leaf Area (cm2)")
-print(leaves_v_area)
-
-# Plot comparing number of leaves to corresponding leaf area but pretty, faceted by date!
-split_by_date <- ggplot(data = sla, aes(n_Leaves, Leaf_Area_cm2, color = Date)) + 
-  geom_point() +
-  labs(title = "Number of Leaves vs. Leaf Area by Date", 
-       subtitle = paste("Lillie Haddock", date()), 
-       x = "Number of Leaves Per Sample", y = "Leaf Area (cm2)") +
-  facet_wrap(~Date)
-print(split_by_date)
-
-## Create an SLA column
 sla <- sla %>% 
   mutate(specific_leaf_area = round(Leaf_Area_cm2 / Leaf_Mass_g, 3)) 
 head(sla)
 
-## ================ Join with inventory data
+## ----- Join with inventory data -----
 
 ## Read in the storm surge inventory data
-ss_inventory <- read.csv("ss-inventory.csv", stringsAsFactors = FALSE) %>% 
+ss_inventory <- read.csv("../ss-inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Species_code, Tag, DBH) %>% 
   mutate(Tag = as.character(Tag))
 summary(ss_inventory)
 
 ## The 'shore' plot at GCREW overlaps with the PREMIS-ghg HSLE plot,
 ## so use that inventory data too
-inventory <- read.csv("transplant_inventory.csv", stringsAsFactors = FALSE) %>% 
+inventory <- read.csv("../inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Tag, Species_code, DBH = DBH_cm_2019) %>% 
   filter(Plot == "HSLE") %>%  # GCREW only
   mutate(Plot = "Shore") %>% 
@@ -70,30 +50,47 @@ sla %>%
   # We only want four letter species codes
   mutate(Species_code = substr(Species_code, 1,4)) ->
   sla_joined
+# NEW: Want ONLY ACRU, FAGR, LIST, NYSY species!
+sla_joined_simple <- sla_joined %>% 
+  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY"))
 
 # At this point there should be NO data with an NA for Plot or DBH or Species_code
 # Warn if this occurs
-if(any(is.na(sla_joined$DBH))) {
+if(any(is.na(sla_joined_simple$DBH))) {
   warning("We still have unmatched trees!")  
 }
-if(any(sla_joined$Species_code == "")) {
-  warning("We blank species codes!")  
+if(any(sla_joined_simple$Species_code == "")) {
+  warning("We have blank species codes!")  
 }
 
+## Join sla_joined_simple with plot species_codes
+species_codes <- read.csv(file = "../Design/species_codes.csv", stringsAsFactors = FALSE) 
+sla_joined_names <- left_join(sla_joined_simple, species_codes, by = "Species_code")
+
+## ----- Plots -----
+
+# Plot comparing number of leaves to corresponding leaf area, color by date
+# Kinda irrelevant 
+leaves_v_area <- ggplot(data = sla, aes(n_Leaves, Leaf_Area_cm2, color = Date)) +
+  geom_jitter() +
+  labs(title = "Number of Leaves vs. Leaf Area", 
+       x = "Number of Leaves Per Sample", y = "Leaf Area (cm2)")
+print(leaves_v_area)
+
 ## SLA by Plot
-sla_by_plot <- sla_joined %>% 
+sla_by_plot <- sla_joined_names %>% 
   ggplot(aes(Species_code, specific_leaf_area, color = Position)) +
   geom_point() +
   geom_jitter() +
   facet_wrap(~Plot) +
   theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "Specific Leaf Area by Plot", y = "Specific Leaf Area", 
-       subtitle = paste("Lillie Haddock", date()))
+  labs(title = "Specific Leaf Area by Plot", x = "Species", y = "Specific Leaf Area")
 print(sla_by_plot)
 
+<<<<<<< HEAD
 
 ## Join sla_joined with plot species_codes
-sla_joined_names <- left_join(sla_joined, species_codes, by = "Species_code")
+sla_joined_names <- left_join(sla_joined, species_code, by = "Species_code")
 ## SLA by species box plot
 
 sla_with_tag <- sla_joined_names %>%
@@ -107,13 +104,15 @@ print(sla_with_tag)
 ## SLA by species faceting by plot
 sla_with_tag_by_plot <- sla_joined %>%
   ggplot(aes(Species_code, specific_leaf_area, label = Tag, color = Position)) +
+=======
+## SLA by species and position box plot
+sla_by_position <- sla_joined_names %>%
+  ggplot(aes(Species_common, specific_leaf_area, color = Position)) +
+>>>>>>> a3f4722df12acb169763b85a2226fb877cd245f2
   geom_boxplot() +
-  geom_text_repel() +
-  geom_point() +
-  facet_wrap(~Plot) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "Specific Leaf Area by Species, Plot, and Tag Number", y = "Specific Leaf Area")
-print(sla_with_tag_by_plot)
+  labs(title = "Specific Leaf Area by Species", x = "Species", y = "Specific Leaf Area") +
+  theme(axis.text.x = element_text(angle = 90))
+print(sla_by_position)
 
 ## SLA faceted by species
 sla_by_species <- sla_joined_names %>%
@@ -135,57 +134,35 @@ sla_vs_dbh <- sla_joined_names %>%
        color = "Species")
 print(sla_vs_dbh)
 
-## leaves vs mass
-leaves_vs_mass <- sla_joined %>% 
-  ggplot(aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
-  geom_point() +
-  facet_wrap(~Species_code) +
-  geom_smooth(method = lm) +
-  labs(title = "Number of Leaves vs. Leaf Dry Mass")
-print(leaves_vs_mass)
+## average SLA of each species table
+sla_averages <- sla_joined_names %>%
+  group_by(Species_common) %>%
+  summarise(sla_mean_species = mean(specific_leaf_area))
 
-## leaves vs area
-leaves_vs_area <- sla_joined %>% 
-  ggplot(aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
-  geom_point() +
-  facet_wrap(~Species_code) +
-  geom_smooth(method = lm) + 
-  labs(title = "Number of Leaves vs. Leaf Area")
-print(leaves_vs_area)
-
-## sla vs position by species
-sla_vs_position <- sla_joined %>% 
-  ggplot(aes(Position, specific_leaf_area, color = Species_code)) +
-  geom_jitter() +
-  labs(title = "Specific Leaf Area vs. Canopy Position", x = "Canopy Position", y = "Specific Leaf Area")
-print(sla_vs_position)
-
-## average sla of each species
-sla_averages <- try_dataset %>%
-  group_by(`Species Common`) %>%
-  summarise(sla_mean_species = mean(`Specific Leaf Area (cm2/g)`))
-
-sla_averages_plot <- try_dataset %>% 
-  ggplot(aes(`Species Common`, `Specific Leaf Area (cm2/g)`)) +
+## average SLA box plot
+sla_averages_plot <- sla_joined_names %>% 
+  ggplot(aes(Species_common, specific_leaf_area)) +
   labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
-  geom_boxplot(aes(fill = `Species Common`)) + 
+  geom_boxplot(aes(fill = Species_common)) + 
   #geom_text(aes(label = round(Specific, 2)), vjust = 1.6, size = 3.3) +
   theme(axis.text.x = element_text(angle = 90)) +
   guides(fill=guide_legend(title="Species"))
 print(sla_averages_plot)
 
-sla_joined %>% 
-  ggplot(aes(Species_code, specific_leaf_area, color = Position)) +
-  geom_boxplot()
-
-
 cat("All done.")
 
 
+## ------ Table of species characteristics -------
+
+species_characteristics <- sla_joined_names %>% 
+  select(Species, Species_common, DBH) %>% 
+  group_by(Species, Species_common) %>% 
+  summarise("Number of Trees Sampled" = n(), "Average Diameter (cm)" = mean(DBH)) %>% 
+print(species_characteristics)
+
 ## ------ Try Database Submission -------
 
-species_codes <- read.csv(file = "species_codes.csv", stringsAsFactors = FALSE) 
-plot_lon_lat <- read.csv(file = "plot-lon-lat.csv", stringsAsFactors = FALSE)
+plot_lon_lat <- read.csv(file = "../Design/plot-lon-lat.csv", stringsAsFactors = FALSE)
 
 try_dataset <- sla_joined %>% 
   left_join(species_codes, by = "Species_code") %>% 
@@ -211,30 +188,5 @@ try_dataset <- sla_joined %>%
          `Specific Leaf Area (cm2/g)` = specific_leaf_area)
 
 write.csv(try_dataset, "Haddock_SLA_20190628.csv")
- 
-         
-## ------ Table for Final SULI Report -------
-
-try_dataset %>% 
-  select(`Species`, `Species Common`, `Diameter at Breast Height (cm)`) %>% 
-  group_by(`Species`, `Species Common`) %>% 
-  summarise("Number of Trees Sampled" = n(), "Average Diameter (cm)" = mean(`Diameter at Breast Height (cm)`)) %>% 
-  kable(format = "markdown") 
-
-
-## ------ Averages for final SULI Report -------
-
-averages <- try_dataset %>%
-  select(`Species Common`, `Leaf Position`, `Specific Leaf Area (cm2/g)`) %>% 
-  group_by(`Species Common`, `Leaf Position`) %>% 
-  summarise("Average SLA per Leaf Position" = mean(`Specific Leaf Area (cm2/g)`))
-  mutate("Difference in Average SLA" = )
-write.csv(averages, "SLA_Averages_position.csv")
-  
-  
-  
-  
-  
-  
 
 

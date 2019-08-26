@@ -10,7 +10,7 @@ library(ggplot2)
 
 ## ================ Read in the SLA csv and make some basic plots
 
-sla <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
+sla <- read.csv("../R_scripts/SLA Data.csv", stringsAsFactors = FALSE) %>% 
   mutate(Tag = as.character(Tag))
 print(sla)
 print(summary(sla))
