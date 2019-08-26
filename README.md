@@ -30,13 +30,13 @@ Map of SERC with plots labeled:
 I think this would be a good place for methods
 
 ![Figure 1: Collecting samples using a pole
-pruner](../Photos/polepruner.png)
+pruner](Photos/polepruner.png)
 
 ![Figure 2: Collecting samples using a hand
-pruner](../Photos/sampling1.png)
+pruner](Photos/sampling1.png)
 
 ![Figure 3: All the samples after a morning of
-collecting](../Photos/sampling2.png)
+collecting](Photos/sampling2.png)
 
 ### SLA Calculation
 
