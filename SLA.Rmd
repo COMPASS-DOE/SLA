@@ -17,6 +17,7 @@ library(readr)
 library(knitr)
 library(ggrepel)
 library(ggplot2)
+library(cowplot)
 ```
 
 ## Motivation
@@ -28,32 +29,27 @@ We investigate SLA differences between plots of varying elevation and salinity e
 Map of SERC with plots labeled: 
 
 
-## Sampling Design
+### Sampling Design
 
 I think this would be a good place for methods
 
-![Figure 1: Collecting samples using a pole pruner](Photos/polepruner.png)
+![Figure 1: Collecting samples using a pole pruner](Photos/polepruner.png) ![Figure 2: Collecting samples using a hand pruner](Photos/sampling1.png) ![Figure 3: All the samples after a morning of collecting](Photos/sampling2.png)
 
-![Figure 2: Collecting samples using a hand pruner](Photos/sampling1.png)
-
-![Figure 3: All the samples after a morning of collecting](Photos/sampling2.png)
-
-### SLA Calculation
+## SLA Data
 
 SLA is calculated using the ratio between a leaf's one-sided fresh leaf area and its total dry mass. 
 
-```{r, echo = FALSE}
+```{r, echo= FALSE}
 ## ----- Read in the SLA csv -----
 sla <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
   mutate(Tag = as.character(Tag))
-```
-
-```{r} 
+## ----- SLA Calculation -----
 sla <- sla %>% 
   mutate(specific_leaf_area = round(Leaf_Area_cm2 / Leaf_Mass_g, 3)) 
 ```
 
-```{r, include = FALSE}
+## Inventory Data
+```{r}
 ## ----- Join with inventory data -----
 
 ## Read in the storm surge inventory data
@@ -81,9 +77,9 @@ sla %>%
   # We only want four letter species codes
   mutate(Species_code = substr(Species_code, 1,4)) ->
   sla_joined
-# NEW: Want ONLY ACRU, FAGR, LIST, NYSY species!
+# NEW: Want ONLY ACRU, FAGR, LIST, NYSY, QUAL species!
 sla_joined_simple <- sla_joined %>% 
-  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY"))
+  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY", "QUAL"))
 
 # At this point there should be NO data with an NA for Plot or DBH or Species_code
 # Warn if this occurs
@@ -121,7 +117,6 @@ leaves_vs_area <- sla_joined %>%
 print(leaves_vs_area)
 
 ```
-
 
 ### Average Specific Leaf Area
 ```{r, echo = FALSE}
