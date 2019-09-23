@@ -77,9 +77,9 @@ sla %>%
   # We only want four letter species codes
   mutate(Species_code = substr(Species_code, 1,4)) ->
   sla_joined
-# NEW: Want ONLY ACRU, FAGR, LIST, NYSY, QUAL species!
+# NEW: Want ONLY ACRU, FAGR, LIST, NYSY, QUAL, LITU species!
 sla_joined_simple <- sla_joined %>% 
-  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY", "QUAL"))
+  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY", "QUAL", "LITU"))
 
 # At this point there should be NO data with an NA for Plot or DBH or Species_code
 # Warn if this occurs
@@ -97,6 +97,14 @@ sla_joined_names <- left_join(sla_joined_simple, species_codes, by = "Species_co
 
 ### Quality Control
 ```{r, echo = FALSE}
+## leaves vs area
+leaves_vs_area <- sla_joined %>% 
+  ggplot(aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
+  geom_point() +
+  facet_wrap(~Species_code) +
+  geom_smooth(method = lm) + 
+  labs(title = "Number of Leaves vs. Leaf Area")
+print(leaves_vs_area)
 
 ## leaves vs mass
 leaves_vs_mass <- sla_joined %>% 
@@ -106,15 +114,6 @@ leaves_vs_mass <- sla_joined %>%
   geom_smooth(method = lm) +
   labs(title = "Number of Leaves vs. Leaf Dry Mass")
 print(leaves_vs_mass)
-
-## leaves vs area
-leaves_vs_area <- sla_joined %>% 
-  ggplot(aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
-  geom_point() +
-  facet_wrap(~Species_code) +
-  geom_smooth(method = lm) + 
-  labs(title = "Number of Leaves vs. Leaf Area")
-print(leaves_vs_area)
 
 ```
 
