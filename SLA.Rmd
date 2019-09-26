@@ -43,7 +43,8 @@ SLA is calculated using the ratio between a leaf's one-sided fresh leaf area and
 ```{r}
 ## ----- Read in the SLA csv -----
 sla <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
-  mutate(Tag = as.character(Tag))
+  mutate(Tag = as.character(Tag)) %>% 
+  filter(Tag == "719") ## fixing the bug!
 ## ----- SLA Calculation -----
 sla <- sla %>% 
   mutate(specific_leaf_area = round(Leaf_Area_cm2 / Leaf_Mass_g, 3)) 
@@ -59,17 +60,11 @@ ss_inventory <- read.csv("ss-inventory.csv", stringsAsFactors = FALSE) %>%
   mutate(Tag = as.character(Tag))
 summary(ss_inventory)
 
-## The 'shore' plot at GCREW overlaps with the PREMIS-ghg HSLE plot,
-## so use that inventory data too
-gcrew_inventory <- read.csv("inventory.csv", stringsAsFactors = FALSE) %>% 
-  select(Plot, Tag, Species_code, DBH = DBH_cm_2019) %>% 
-  filter(Plot == "HSLE") %>%  # GCREW only
-  mutate(Plot = "Shore") %>%  
-  bind_rows(ss_inventory)
-
+# Read in transplant inventory data
 inventory <- read.csv("inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Tag, Species_code, DBH = DBH_cm_2019) %>% 
-  bind_rows(gcrew_inventory)
+  mutate(Tag = as.character(Tag)) %>% 
+  bind_rows(ss_inventory)
 
 shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
 
@@ -81,7 +76,7 @@ sla %>%
   mutate(DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
          Species_code = if_else(is.na(Species_code), No_Tag_Species_code, Species_code),
          Plot = if_else(is.na(Plot), No_Tag_Plot, Plot)) %>% 
-  # We only want four letter species codes
+  # We only want four letter species codes, and want to add an elevation column 
   mutate(Species_code = substr(Species_code, 1,4), 
          Elevation = if_else(Plot %in% shoreline_plots, "Shoreline", "Upland")) -> 
   sla_joined
@@ -113,7 +108,7 @@ sla_joined_names %>%
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 1: Specific Leaf Area by Species") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Elevation summary
 sla_joined_names %>% 
@@ -122,7 +117,7 @@ sla_joined_names %>%
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Elevation", "n", "Average SLA cm2/g", "SD"),
                caption = "Table 2: SLA Elevation Gradient") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Position summary
 sla_joined_names %>% 
@@ -131,7 +126,7 @@ sla_joined_names %>%
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Canopy Position", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 3: SLA Canopy Position") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Make site objects to be used for salinity gradient summary table 
 nb_plots <- c("LSHE", "LSME", "LSLE")
@@ -152,7 +147,7 @@ sla_joined_names %>%
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Plot", "n", "Average SLA cm2/g", "SD"),
                caption = "Table 4: SLA Along Salinity gradient") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), )
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 ```
 
 
@@ -223,6 +218,36 @@ sla_vs_dbh <- sla_joined_names %>%
        color = "Species")
 print(sla_vs_dbh)
 ```
+
+```{r, echo = FALSE}
+# The relationship between species and SLA along salinity gradient
+
+sla_salinity <- sla_joined_names %>% 
+  ggplot(aes(, specific_leaf_area, color = Species_common)) +
+  geom_point() +
+  labs(x = "Site")
+
+
+
+```
+
+```{r, echo = FALSE}
+# Comparing GCREW SLA values from June to September
+# group by tree, filter by more than one unique date
+
+gcrew_comparison <- sla_joined_names %>% 
+  group_by(Tag) %>% 
+  filter(n_distinct(Date) > 1)
+
+
+```
+
+
+
+
+
+
+
 
 ### 
 ## 
