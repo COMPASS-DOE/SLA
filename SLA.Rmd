@@ -43,11 +43,11 @@ SLA is calculated using the ratio between a leaf's one-sided fresh leaf area and
 
 ```{r}
 ## ----- Read in the SLA csv -----
-sla <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
+sla_raw <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
   mutate(Tag = as.character(Tag)) 
 
 ## ----- SLA Calculation -----
-sla <- sla %>% 
+sla_calc <- sla_raw %>% 
   mutate(specific_leaf_area = round(Leaf_Area_cm2 / Leaf_Mass_g, 3)) 
 ```
 
@@ -70,7 +70,7 @@ shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
 
 # Create new dataset with plot, species, and tag columns
 # by joining with the storm surge inventory data
-sla %>% 
+sla_calc %>% 
   left_join(inventory, by = "Tag") %>% 
   # if NA DBH, then get information from what we measured in field
   mutate(DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
@@ -96,13 +96,19 @@ if(any(sla_joined_simple$Species_code == "")) {
 
 ## Join sla_joined_simple with plot species_codes
 species_codes <- read.csv(file = "Design/species_codes.csv", stringsAsFactors = FALSE) 
-sla_joined_names <- left_join(sla_joined_simple, species_codes, by = "Species_code") # Change the name!
+sla <- left_join(sla_joined_simple, species_codes, by = "Species_code")
+
+sla_shoreline <- sla %>% 
+  filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
+  mutate(Salinity = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
+        Salinity = if_else(Plot == "MSLE", "Medium salinity", Plot),
+        Salinity = if_else(Plot == "LSLE", "Low salinity", Plot)) 
 ```
 
 ### Summary Tables
 ```{r,echo= FALSE}
 # Table 1
-sla_joined_names %>% 
+sla %>% 
   group_by(Species_common) %>% 
   summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
@@ -111,7 +117,7 @@ sla_joined_names %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Elevation summary
-sla_joined_names %>% 
+sla %>% 
   group_by(Elevation) %>% 
   summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
@@ -120,55 +126,35 @@ sla_joined_names %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Position summary
-sla_joined_names %>%
-  filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-  # rename for clarity in this table only 
-  mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-         Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
-         Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
-  group_by(Species_common, Plot) %>% 
+sla_shoreline %>%
+  group_by(Species_common, Salinity) %>% 
   summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Canopy Position", "n", "Average SLA cm2/g", "SD"), 
+               col.names = c("Canopy Position", "Plot","n", "Average SLA cm2/g", "SD"), 
                caption = "Table 3: SLA Canopy Position") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Salinity
-sla_joined_names %>%
-  filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-   # rename for clarity in this table only 
-   mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-          Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
-          Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
-   group_by(Species_common, Plot) %>% 
+sla_shoreline %>%
+   group_by(Species_common, Salinity) %>% 
    summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "Salinity Exposure", "n", "Average SLA cm2/g", "SD"),
                caption = "Table 4: SLA Along Salinity Gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
- sla_joined_names %>%
-   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-   # rename for clarity in this table only 
-   mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-          Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
-          Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
-   group_by(Species_common, Plot) %>% 
-   summarise(mean_SLA = mean(specific_leaf_area)) %>% spread(Plot, mean_SLA) %>% 
+ sla_shoreline %>%
+   group_by(Species_common, Salinity) %>% 
+   summarise(mean_SLA = mean(specific_leaf_area)) %>% spread(Salinity, mean_SLA) %>% 
   knitr::kable(digits = 1, format = "html",
                col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
                caption = "Table 5: Average SLA (cm2/g) along Salinity Gradient for each Species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
   
- sla_joined_names %>%
-   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-   # rename for clarity in this table only 
-   mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-          Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
-          Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
-   group_by(Species_common, Plot) %>% 
-   summarise(mean_SLA = paste(mean(specific_leaf_area), "+/-", sd(specific_leaf_area))) %>% 
-   spread(Plot, mean_SLA) %>% 
+ sla_shoreline %>%
+   group_by(Species_common, Salinity) %>% 
+   summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 2), "+/-", round(sd(specific_leaf_area), digits = 2))) %>% 
+   spread(Salinity, mean_SLA) %>% 
   knitr::kable(digits = 1, format = "html",
                col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
                caption = "Table 6: Average SLA (cm2/g) along Salinity Gradient") %>% 
@@ -179,7 +165,7 @@ sla_joined_names %>%
 ### Quality Control Plots
 ```{r, echo = FALSE}
 ## leaves vs area
-leaves_vs_area <- sla_joined %>% 
+leaves_vs_area <- sla %>% 
   ggplot(aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
@@ -188,7 +174,7 @@ leaves_vs_area <- sla_joined %>%
 print(leaves_vs_area)
 
 ## leaves vs mass
-leaves_vs_mass <- sla_joined %>% 
+leaves_vs_mass <- sla %>% 
   ggplot(aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
@@ -201,7 +187,7 @@ print(leaves_vs_mass)
 ### Results
 ```{r, echo = FALSE}
 #SLA Box Plot
-sla_averages_plot <- sla_joined_names %>% 
+sla_averages_plot <- sla %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
   labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
   geom_boxplot(aes(fill = Species_common)) + 
@@ -214,7 +200,7 @@ print(sla_averages_plot)
 ```{r, echo = FALSE}
 # Specific Leaf Area by Plot
 
-sla_by_elev <- sla_joined_names %>% 
+sla_by_elev <- sla %>% 
   ggplot(aes(Species_common, specific_leaf_area, color = Elevation)) +
   geom_boxplot() +
   scale_fill_manual(values = wes_palette("Moonrise3", 5, type = "continuous")) +
@@ -225,7 +211,7 @@ print(sla_by_elev)
 
 ```{r, echo = FALSE}
 # Specific Leaf Area by Species
-sla_by_species <- sla_joined_names %>%
+sla_by_species <- sla %>%
   ggplot(aes(Elevation, specific_leaf_area, color = Plot)) +
   geom_jitter() +
   facet_wrap(~Species_common) +
@@ -236,7 +222,7 @@ print(sla_by_species)
 
 ```{r, echo = FALSE}
 # The Relationship Between Specific Leaf Area and Tree Diameter at Breast Height
-sla_vs_dbh <- sla_joined_names %>% 
+sla_vs_dbh <- sla %>% 
   ggplot(aes(DBH, specific_leaf_area, color = Species_common)) +
   geom_point() + 
   facet_wrap(~Species_common) +
@@ -247,17 +233,22 @@ print(sla_vs_dbh)
 
 ```{r, echo = FALSE}
 # The relationship between species and SLA along salinity gradient
+HML <- c("High salinity", "Medium salinity", "Low salinity")
 
-sla_sal_gradient <- sla_joined_names %>% 
+sla_sal_gradient <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
   # rename for clarity in this table only 
   mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
          Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
          Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
+  mutate(Plot = factor(Plot, levels = HML)) %>% 
   group_by(Species_common, Plot) %>% 
   ggplot(aes(Plot, specific_leaf_area)) +
-  geom_point()
-paste(sla_sal_gradient)
+  geom_violin(aes(fill = Plot)) +
+  theme(legend.position = "none") +
+  labs(title = "Specific Leaf Area along Natural Salinity Gradient", y = "Specific Leaf Area (cm2/g)") +
+  scale_fill_manual(values = wes_palette("GrandBudapest1", n = 3))
+print(sla_sal_gradient)
 
 ```
 
@@ -265,19 +256,8 @@ paste(sla_sal_gradient)
 # Comparing GCREW SLA values from June to September
 # group by tree, filter by more than one unique date
 
-gcrew_comparison <- sla_joined_names %>% 
+gcrew_comparison <- sla %>% 
   group_by(Tag) %>% 
   filter(n_distinct(Date) > 1)
 
-
 ```
-
-
-
-
-
-
-
-
-### 
-## 
