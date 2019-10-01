@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r, include=FALSE} 
+```{r Load Packages, include=FALSE} 
 ## Load necessary packages
 library(dplyr)
 library(tidyr)
@@ -41,7 +41,7 @@ Map of SERC with plots labeled:
 
 SLA is calculated using the ratio between a leaf's one-sided fresh leaf area and its total dry mass. 
 
-```{r}
+```{r SLA Calculation}
 ## ----- Read in the SLA csv -----
 sla_raw <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
   mutate(Tag = as.character(Tag)) 
@@ -52,7 +52,7 @@ sla_calc <- sla_raw %>%
 ```
 
 ## Inventory Data
-```{r}
+```{r SLA Inventory}
 ## ----- Join with inventory data -----
 
 ## Read in the storm surge inventory data
@@ -106,7 +106,7 @@ sla_shoreline <- sla %>%
 ```
 
 ### Summary Tables
-```{r,echo= FALSE}
+```{r Summary Tables,echo= FALSE}
 # Table 1
 sla %>% 
   group_by(Species_common) %>% 
@@ -163,7 +163,7 @@ sla_shoreline %>%
 
 
 ### Quality Control Plots
-```{r, echo = FALSE}
+```{r Quality Control Plots, echo = FALSE}
 ## leaves vs area
 leaves_vs_area <- sla %>% 
   ggplot(aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
@@ -185,7 +185,7 @@ print(leaves_vs_mass)
 ```
 
 ### Results
-```{r, echo = FALSE}
+```{r Average Specific Leaf Area, echo = FALSE}
 #SLA Box Plot
 sla_averages_plot <- sla %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
@@ -197,19 +197,20 @@ sla_averages_plot <- sla %>%
 print(sla_averages_plot)
 ```
 
-```{r, echo = FALSE}
+```{r Specific Leaf Area by Elevation, echo = FALSE}
 # Specific Leaf Area by Plot
 
 sla_by_elev <- sla %>% 
-  ggplot(aes(Species_common, specific_leaf_area, color = Elevation)) +
+  ggplot(aes(Species_common, specific_leaf_area, color = Elevation, fill = Elevation)) +
   geom_boxplot() +
-  scale_fill_manual(values = wes_palette("Moonrise3", 5, type = "continuous")) +
-  theme(axis.text.x = element_text(angle = 90)) +
+  scale_color_manual(values = wes_palette(n = 2, name = "GrandBudapest1")) +
+  scale_fill_manual(values = wes_palette(n = 2, name = "GrandBudapest1")) +
+ theme(axis.text.x = element_text(angle = 90)) +
   labs(title = "Specific Leaf Area by Elevation", x = "Species", y = "Specific Leaf Area")
 print(sla_by_elev)
 ```
 
-```{r, echo = FALSE}
+```{r Specific Leaf Area by Species and Plot, echo = FALSE}
 # Specific Leaf Area by Species
 sla_by_species <- sla %>%
   ggplot(aes(Elevation, specific_leaf_area, color = Plot)) +
@@ -220,7 +221,7 @@ sla_by_species <- sla %>%
 print(sla_by_species)
 ```
 
-```{r, echo = FALSE}
+```{r Specific Leaf Area vs. Tree Diameter, echo = FALSE}
 # The Relationship Between Specific Leaf Area and Tree Diameter at Breast Height
 sla_vs_dbh <- sla %>% 
   ggplot(aes(DBH, specific_leaf_area, color = Species_common)) +
@@ -231,7 +232,7 @@ sla_vs_dbh <- sla %>%
 print(sla_vs_dbh)
 ```
 
-```{r, echo = FALSE}
+```{r Specific Leaf Area along Natural Salinity Gradient, echo = FALSE}
 # The relationship between species and SLA along salinity gradient
 HML <- c("High salinity", "Medium salinity", "Low salinity")
 
@@ -252,7 +253,7 @@ print(sla_sal_gradient)
 
 ```
 
-```{r, echo = FALSE}
+```{r GCREW SLA Comparison, echo = FALSE}
 # Comparing GCREW SLA values from June to September
 # group by tree, filter by more than one unique date
 
@@ -261,3 +262,24 @@ gcrew_comparison <- sla %>%
   filter(n_distinct(Date) > 1)
 
 ```
+
+## Statistics 
+```{r Statistics, echo = FALSE}
+# some statistics will happen here. But what??? Tune in to find out
+
+
+```
+
+## Leaf Area
+```{r Leaf Area and SLA Analysis}
+
+
+
+
+
+
+
+```
+
+
+
