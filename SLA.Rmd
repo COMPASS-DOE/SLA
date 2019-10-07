@@ -16,6 +16,7 @@ library(tidyr)
 library(readr)
 library(knitr)
 library(kableExtra)
+library(lubridate)
 library(ggrepel)
 library(ggplot2)
 library(gganimate)
@@ -101,8 +102,8 @@ sla <- left_join(sla_joined_simple, species_codes, by = "Species_code")
 sla_shoreline <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
   mutate(Salinity = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-        Salinity = if_else(Plot == "MSLE", "Medium salinity", Plot),
-        Salinity = if_else(Plot == "LSLE", "Low salinity", Plot)) 
+         Salinity = if_else(Plot == "MSLE", "Medium salinity", Plot),
+         Salinity = if_else(Plot == "LSLE", "Low salinity", Plot)) 
 ```
 
 ### Summary Tables
@@ -136,25 +137,25 @@ sla_shoreline %>%
 
 # Salinity
 sla_shoreline %>%
-   group_by(Species_common, Salinity) %>% 
-   summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  group_by(Species_common, Salinity) %>% 
+  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "Salinity Exposure", "n", "Average SLA cm2/g", "SD"),
                caption = "Table 4: SLA Along Salinity Gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
- sla_shoreline %>%
-   group_by(Species_common, Salinity) %>% 
-   summarise(mean_SLA = mean(specific_leaf_area)) %>% spread(Salinity, mean_SLA) %>% 
+sla_shoreline %>%
+  group_by(Species_common, Salinity) %>% 
+  summarise(mean_SLA = mean(specific_leaf_area)) %>% spread(Salinity, mean_SLA) %>% 
   knitr::kable(digits = 1, format = "html",
                col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
                caption = "Table 5: Average SLA (cm2/g) along Salinity Gradient for each Species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
-  
- sla_shoreline %>%
-   group_by(Species_common, Salinity) %>% 
-   summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 2), "+/-", round(sd(specific_leaf_area), digits = 2))) %>% 
-   spread(Salinity, mean_SLA) %>% 
+
+sla_shoreline %>%
+  group_by(Species_common, Salinity) %>% 
+  summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 2), "+/-", round(sd(specific_leaf_area), digits = 2))) %>% 
+  spread(Salinity, mean_SLA) %>% 
   knitr::kable(digits = 1, format = "html",
                col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
                caption = "Table 6: Average SLA (cm2/g) along Salinity Gradient") %>% 
@@ -205,7 +206,7 @@ sla_by_elev <- sla %>%
   geom_boxplot() +
   scale_color_manual(values = wes_palette(n = 2, name = "GrandBudapest1")) +
   scale_fill_manual(values = wes_palette(n = 2, name = "GrandBudapest1")) +
- theme(axis.text.x = element_text(angle = 90)) +
+  theme(axis.text.x = element_text(angle = 90)) +
   labs(title = "Specific Leaf Area by Elevation", x = "Species", y = "Specific Leaf Area")
 print(sla_by_elev)
 ```
@@ -280,16 +281,55 @@ litter_4 <- read.csv("../SLA/litter/litterweight_20190828_20190125_20190703_2019
 litter_5 <- read.csv("../SLA/litter/litterweight_transplants.csv", stringsAsFactors = FALSE)
 
 # Combine all litter data into one data frame
-litter_data_raw <- rbind.data.frame(litter_1, litter_2, litter_3, litter_4, litter_5)
+litter_data_raw <- bind_rows(litter_1, litter_2, litter_3, litter_4, litter_5) %>% as_tibble()
+
+# This is our mapping from Species (as recorded in the litter data) to species code (as in SLA data)
+species_litter_map <- c("M_leaf_beech" = "FAGR",
+                        "M_leaf_oak" = "QUAL",
+                        "M_leaf_tulip" = "LITU",
+                        "M_leaf_other" = "LIST")  # temporary
+
+avg_litter <- litter_data_raw %>% 
+  # filter for exactly one year of litter data
+  mutate(Date_collected = mdy(Date_collected)) %>% 
+  filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
+  # restructure data
+  gather(Species, Value, starts_with("M_leaf")) %>% 
+  select(Plot, Trap, Date_collected, Species, Value) %>% 
+  # Traps are 0.5 m2, convert to 1 m2
+  mutate(Value = Value * 2) %>% 
+  # Compute plot average by date and species
+  group_by(Plot, Species, Date_collected) %>% 
+  summarise(avg_litter_mass = mean(Value, na.rm = TRUE)) %>% 
+  # Sum across all dates (g litter/yr)
+  summarise(annual_litter_mass = round(sum(avg_litter_mass, na.rm = TRUE), 3)) %>% 
+  # Add species codes
+  mutate(Species_code = species_litter_map[Species])
+
+# bar graph 
+
+
+# join with SLA data 
+
+sla_for_lai <- sla %>% 
+  group_by(Species_code) %>% 
+  summarise(avg_sla = mean(specific_leaf_area))
+
+lai <- avg_litter %>% 
+  left_join(sla_for_lai, by = "Species_code") %>% 
+  mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
+  group_by(Plot) %>% 
+  summarise(lai_plot = round(sum(LAI), 2))
+
 
 # Need averages of each litter type for each plot
 ## Lets try this with M_woody first
-
 avg_woody_mass <- litter_data_raw %>% 
   select(Plot:M_woody) %>% 
   filter(Plot == "LSLE") %>% 
   summarise(avg_mwoody_mass = mean(as.numeric(M_woody), na.rm=TRUE))
 print(avg_woody_mass)
+
 
 # Nice! 
 # Now lets do this for all litter types and plots
@@ -301,8 +341,20 @@ avg_litter_mass <- litter_data_raw %>%
             avg_mass_oak = mean(as.numeric((M_leaf_oak)), na.rm=TRUE),
             avg_mass_tulip = mean(as.numeric((M_leaf_tulip)), na.rm=TRUE), 
             avg_mass_beech = mean(as.numeric((M_leaf_beech)), na.rm=TRUE), 
-            avg_mass_other = mean(as.numeric((M_leaf_other)), na.rm=TRUE)) %>% 
-            cbind(avg_mass_total = colSums(M_woody:M_leaf_other))
+            avg_mass_other = mean(as.numeric((M_leaf_other)), na.rm=TRUE)) #%>% 
+# cbind(avg_mass_total = colSums(M_woody:M_leaf_other))
+print(avg_litter_mass)
+
+total_litter_mass <- litter_data_raw %>% 
+  select(-Trap, -Date_weighed, -Date_collected) %>% 
+  group_by(Plot) %>% 
+  summarise(avg_mass_woody = mean(as.numeric((M_woody)), na.rm=TRUE), 
+            avg_mass_repro = mean(as.numeric((M_reproductive)), na.rm=TRUE), 
+            avg_mass_oak = mean(as.numeric((M_leaf_oak)), na.rm=TRUE),
+            avg_mass_tulip = mean(as.numeric((M_leaf_tulip)), na.rm=TRUE), 
+            avg_mass_beech = mean(as.numeric((M_leaf_beech)), na.rm=TRUE), 
+            avg_mass_other = mean(as.numeric((M_leaf_other)), na.rm=TRUE)) #%>% 
+# cbind(avg_mass_total = colSums(M_woody:M_leaf_other))
 print(avg_litter_mass)
 
 
