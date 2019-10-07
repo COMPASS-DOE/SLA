@@ -272,14 +272,38 @@ gcrew_comparison <- sla %>%
 
 ## Leaf Area
 ```{r Leaf Area and SLA Analysis}
+# Read in litter data
+litter_1 <- read.csv("../SLA/litter/litterweight_20181012_20181015.csv", stringsAsFactors = FALSE)
+litter_2 <- read.csv("../SLA/litter/litterweight_20181108.csv", stringsAsFactors = FALSE)
+litter_3 <- read.csv("../SLA/litter/litterweight_20190705.csv", stringsAsFactors = FALSE)
+litter_4 <- read.csv("../SLA/litter/litterweight_20190828_20190125_20190703_20191121_20191108.csv", stringsAsFactors = FALSE)
+litter_5 <- read.csv("../SLA/litter/litterweight_transplants.csv", stringsAsFactors = FALSE)
 
+# Combine all litter data into one data frame
+litter_data_raw <- rbind.data.frame(litter_1, litter_2, litter_3, litter_4, litter_5)
 
+# Need averages of each litter type for each plot
+## Lets try this with M_woody first
 
+avg_woody_mass <- litter_data_raw %>% 
+  select(Plot:M_woody) %>% 
+  filter(Plot == "LSLE") %>% 
+  summarise(avg_mwoody_mass = mean(as.numeric(M_woody), na.rm=TRUE))
+print(avg_woody_mass)
 
-
+# Nice! 
+# Now lets do this for all litter types and plots
+avg_litter_mass <- litter_data_raw %>% 
+  select(-Trap, -Date_weighed, -Date_collected) %>% 
+  group_by(Plot) %>% 
+  summarise(avg_mass_woody = mean(as.numeric((M_woody)), na.rm=TRUE), 
+            avg_mass_repro = mean(as.numeric((M_reproductive)), na.rm=TRUE), 
+            avg_mass_oak = mean(as.numeric((M_leaf_oak)), na.rm=TRUE),
+            avg_mass_tulip = mean(as.numeric((M_leaf_tulip)), na.rm=TRUE), 
+            avg_mass_beech = mean(as.numeric((M_leaf_beech)), na.rm=TRUE), 
+            avg_mass_other = mean(as.numeric((M_leaf_other)), na.rm=TRUE)) %>% 
+            cbind(avg_mass_total = colSums(M_woody:M_leaf_other))
+print(avg_litter_mass)
 
 
 ```
-
-
-
