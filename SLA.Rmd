@@ -53,7 +53,7 @@ sla_calc <- sla_raw %>%
 ```
 
 ## Inventory Data
-```{r SLA Inventory}
+```{r SLA Inventory, error = FALSE}
 ## ----- Join with inventory data -----
 
 ## Read in the storm surge inventory data
@@ -99,11 +99,17 @@ if(any(sla_joined_simple$Species_code == "")) {
 species_codes <- read.csv(file = "Design/species_codes.csv", stringsAsFactors = FALSE) 
 sla <- left_join(sla_joined_simple, species_codes, by = "Species_code")
 
+## Adding Salinity Column 
+Shoreline_plots <- c("LSLE", "MSLE", "HSLE", "Shore")
+Salinity <- c("Low Salinity", "Medium Salinity", "High Salinity", "High Salinity")
+df <- data.frame(Shoreline_plots, Salinity)
+
 sla_shoreline <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
   mutate(Salinity = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
          Salinity = if_else(Plot == "MSLE", "Medium salinity", Plot),
          Salinity = if_else(Plot == "LSLE", "Low salinity", Plot)) 
+
 ```
 
 ### Summary Tables
@@ -127,11 +133,11 @@ sla %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Position summary
-sla_shoreline %>%
-  group_by(Species_common, Salinity) %>% 
+sla %>%
+  group_by(Species_common, Position) %>% 
   summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Canopy Position", "Plot","n", "Average SLA cm2/g", "SD"), 
+               col.names = c("Species", "Canopy Position", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 3: SLA Canopy Position") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
@@ -214,10 +220,12 @@ print(sla_by_elev)
 ```{r Specific Leaf Area by Species and Plot, echo = FALSE}
 # Specific Leaf Area by Species
 sla_by_species <- sla %>%
-  ggplot(aes(Elevation, specific_leaf_area, color = Plot)) +
-  geom_jitter() +
+  group_by(Species_common, Elevation) %>% 
+  summarise(avg_sla = mean(specific_leaf_area)) %>% 
+  ggplot(aes(Elevation, avg_sla)) +
+  geom_col() +
   facet_wrap(~Species_common) +
-  theme(axis.text.x = element_text(angle = 90)) +
+  #theme(axis.text.x = element_text(angle = 90)) +
   labs(title = "Specific Leaf Area by Species and Plot", y = "Specific Leaf Area (cm2/g)")
 print(sla_by_species)
 ```
