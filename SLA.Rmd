@@ -273,9 +273,21 @@ gcrew_comparison <- sla %>%
 ```
 
 ## Statistics 
-```{r Statistics, echo = FALSE}
+```{r Statistics, echo = FALSE, }
 # some statistics will happen here. But what??? Tune in to find out
+# sla %>% 
+#   mutate(EarlyLate = if_else(mdy(Date) < mdy("8/1/2019"), "Early", "Late")) %>% 
+#   filter(Position == "Low/Shade", Plot %in% c("Shore", "HSLE")) %>% 
+#   select(Plot, Species, Tag, DBH, EarlyLate, specific_leaf_area) %>% 
+#   distinct(Plot, Species, Tag, DBH, EarlyLate, .keep_all = TRUE) %>% 
+#   spread(EarlyLate, specific_leaf_area)
 
+# We want to end up with a data frame with an "Early" and "Late" column of SLA values for
+# each individual sampled. Right now the code above is producing a *very* small number
+# of trees. Why? 
+# Step 1: let's produce a list of trees sampled both early and late
+# Step 2: why are we getting duplication?
+# Step 3: group_by(Species) %>% t.test(Early, Late, paired = TRUE)
 
 ```
 
@@ -295,7 +307,7 @@ litter_data_raw <- bind_rows(litter_1, litter_2, litter_3, litter_4, litter_5) %
 species_litter_map <- c("M_leaf_beech" = "FAGR",
                         "M_leaf_oak" = "QUAL",
                         "M_leaf_tulip" = "LITU",
-                        "M_leaf_other" = "LIST")  # temporary
+                        "M_leaf_other" = "OTHER")  # temporary
 
 avg_litter <- litter_data_raw %>% 
   # filter for exactly one year of litter data
@@ -310,12 +322,18 @@ avg_litter <- litter_data_raw %>%
   group_by(Plot, Species, Date_collected) %>% 
   summarise(avg_litter_mass = mean(Value, na.rm = TRUE)) %>% 
   # Sum across all dates (g litter/yr)
-  summarise(annual_litter_mass = round(sum(avg_litter_mass, na.rm = TRUE), 3)) %>% 
+  summarise(annual_litter_mass = round(sum(avg_litter_mass, na.rm = TRUE), 2)) %>% 
   # Add species codes
   mutate(Species_code = species_litter_map[Species])
 
 # bar graph 
-
+avg_litter_plot <- avg_litter %>% 
+  ggplot(aes(Species_code, annual_litter_mass)) +
+  geom_col() +
+  geom_text(aes(label = annual_litter_mass)) +
+  facet_wrap(~Plot) +
+  labs(title = "Average Litter Mass per Plot", x = "Species", y = "Average Litter Mass (g/m2)")
+print(avg_litter_plot)
 
 # join with SLA data 
 
@@ -323,47 +341,24 @@ sla_for_lai <- sla %>%
   group_by(Species_code) %>% 
   summarise(avg_sla = mean(specific_leaf_area))
 
+# At this point, we have SLA by species, but the litter data is not as resolved; there's an
+# "Other" category we need to have an SLA for. To do this, compute a weighted mean SLA based
+# on the occurrence (squared diameter) of secondary species not broken out in the litter data:
+# sweetgum, black gum, red maple, ...?
+
+
+# Now bind the SLA means with our new SLA_other data
+
+
+
 lai <- avg_litter %>% 
   left_join(sla_for_lai, by = "Species_code") %>% 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   group_by(Plot) %>% 
   summarise(lai_plot = round(sum(LAI), 2))
 
-
-# Need averages of each litter type for each plot
-## Lets try this with M_woody first
-avg_woody_mass <- litter_data_raw %>% 
-  select(Plot:M_woody) %>% 
-  filter(Plot == "LSLE") %>% 
-  summarise(avg_mwoody_mass = mean(as.numeric(M_woody), na.rm=TRUE))
-print(avg_woody_mass)
-
-
-# Nice! 
-# Now lets do this for all litter types and plots
-avg_litter_mass <- litter_data_raw %>% 
-  select(-Trap, -Date_weighed, -Date_collected) %>% 
-  group_by(Plot) %>% 
-  summarise(avg_mass_woody = mean(as.numeric((M_woody)), na.rm=TRUE), 
-            avg_mass_repro = mean(as.numeric((M_reproductive)), na.rm=TRUE), 
-            avg_mass_oak = mean(as.numeric((M_leaf_oak)), na.rm=TRUE),
-            avg_mass_tulip = mean(as.numeric((M_leaf_tulip)), na.rm=TRUE), 
-            avg_mass_beech = mean(as.numeric((M_leaf_beech)), na.rm=TRUE), 
-            avg_mass_other = mean(as.numeric((M_leaf_other)), na.rm=TRUE)) #%>% 
-# cbind(avg_mass_total = colSums(M_woody:M_leaf_other))
-print(avg_litter_mass)
-
-total_litter_mass <- litter_data_raw %>% 
-  select(-Trap, -Date_weighed, -Date_collected) %>% 
-  group_by(Plot) %>% 
-  summarise(avg_mass_woody = mean(as.numeric((M_woody)), na.rm=TRUE), 
-            avg_mass_repro = mean(as.numeric((M_reproductive)), na.rm=TRUE), 
-            avg_mass_oak = mean(as.numeric((M_leaf_oak)), na.rm=TRUE),
-            avg_mass_tulip = mean(as.numeric((M_leaf_tulip)), na.rm=TRUE), 
-            avg_mass_beech = mean(as.numeric((M_leaf_beech)), na.rm=TRUE), 
-            avg_mass_other = mean(as.numeric((M_leaf_other)), na.rm=TRUE)) #%>% 
-# cbind(avg_mass_total = colSums(M_woody:M_leaf_other))
-print(avg_litter_mass)
-
+lai %>% 
+  ggplot(aes()) +
+  coordi
 
 ```
