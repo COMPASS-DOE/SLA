@@ -345,6 +345,12 @@ sla_for_lai <- sla %>%
 # "Other" category we need to have an SLA for. To do this, compute a weighted mean SLA based
 # on the occurrence (squared diameter) of secondary species not broken out in the litter data:
 # sweetgum, black gum, red maple, ...?
+litter_other <- inventory %>% 
+  filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
+  group_by(Plot, Species_code) %>% 
+  summarise(weight = sum(DBH^2)) %>% 
+  left_join(sla_for_lai, by = "Species_code") %>% 
+  weighted.mean(sla_for_lai, weight)
 
 
 # Now bind the SLA means with our new SLA_other data
