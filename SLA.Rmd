@@ -338,7 +338,7 @@ print(avg_litter_plot)
 # join with SLA data 
 
 sla_for_lai <- sla %>% 
-  group_by(Species_code) %>% 
+  group_by(Plot, Species_code) %>% 
   summarise(avg_sla = mean(specific_leaf_area))
 
 # At this point, we have SLA by species, but the litter data is not as resolved; there's an
