@@ -345,20 +345,34 @@ sla_for_lai <- sla %>%
 # "Other" category we need to have an SLA for. To do this, compute a weighted mean SLA based
 # on the occurrence (squared diameter) of secondary species not broken out in the litter data:
 # sweetgum, black gum, red maple, ...?
-litter_other <- inventory %>% 
+inventory %>% 
   filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
   group_by(Plot, Species_code) %>% 
-  summarise(weight = sum(DBH^2)) %>% 
-  left_join(sla_for_lai, by = "Species_code") %>% 
-  weighted.mean(sla_for_lai, weight)
+  summarise(weight = sum(DBH^2)) ->
+  plot_weights
 
+sla_for_lai %>% 
+  left_join(plot_weights, by = c("Plot", "Species_code")) %>% 
+  filter(!is.na(weight)) %>% 
+  group_by(Plot) %>% 
+  summarise(Species_code = "OTHER",
+            avg_sla = weighted.mean(avg_sla, w = weight)) %>% 
+  # Now bind the SLA means with our new SLA_other data
+  bind_rows(sla_for_lai) ->
+  sla_for_lai
 
-# Now bind the SLA means with our new SLA_other data
-
+# We have litter data, but no SLA samples, from HSHE/HSME/HSLE
+# For these we will use control and/or shore
+# Make a table that tells us what plot's SLA to use for each plot
+sla_map <- tibble(Plot = unique(sla_for_lai$Plot),
+                  Use_SLA_from_plot = Plot)
+sla_map$Use_SLA_from_plot[sla_map$Plot %in% c("HSHE", "HSME")] <- "Control"
+sla_map$Use_SLA_from_plot[sla_map$Plot == "HSLE"] <- "Shore"
 
 
 lai <- avg_litter %>% 
-  left_join(sla_for_lai, by = "Species_code") %>% 
+  left_join(sla_map, by = "Plot") %>% 
+  left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) %>% 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   group_by(Plot) %>% 
   summarise(lai_plot = round(sum(LAI), 2))
