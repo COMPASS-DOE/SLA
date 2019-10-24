@@ -92,6 +92,9 @@ shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
 # Create new dataset with plot, species, and tag columns
 # by joining with the storm surge inventory data
 
+# Make blank Tag values NAs to stop duplicates when joining
+sla_calc$Tag[which(sla_calc$Tag == "")] <- NA
+
 sla_joined <- sla_calc %>% 
   left_join(inventory, by = "Tag") 
 
