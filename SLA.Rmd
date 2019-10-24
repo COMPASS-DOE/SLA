@@ -56,31 +56,69 @@ sla_calc <- sla_raw %>%
 ```{r SLA Inventory, error = FALSE}
 ## ----- Join with inventory data -----
 
-## Read in the storm surge inventory data
+## Read in the storm surge inventory data 
+# Storm surge inventory doesn't include the shore plot at GCREW!
 ss_inventory <- read.csv("ss-inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Species_code, Tag, DBH) %>% 
   mutate(Tag = as.character(Tag))
 
+if(any(duplicated(ss_inventory$Tag))) {
+  warning("We have duplicate tree tags in SS inventory!")
+}
+
 # Read in transplant inventory data
 inventory <- read.csv("inventory.csv", stringsAsFactors = FALSE) %>% 
   select(Plot, Tag, Species_code, DBH = DBH_cm_2019) %>% 
-  mutate(Tag = as.character(Tag)) %>% 
-  bind_rows(ss_inventory)
+  mutate(Tag = as.character(Tag)) 
+# Check that no tag numbers are duplicated
+# This is DEFENSIVE PROGRAMMING
+if(any(duplicated(inventory$Tag))) {
+  warning("We have duplicate tree tags in transplant inventory!")
+}
+
+# Combine Storm Surge inventory with Transplant inventory
+inventory <- inventory %>% 
+  # Bind with storm surge inventory 
+   bind_rows(ss_inventory)
+
+# Check that no tag numbers are duplicated
+# This is DEFENSIVE PROGRAMMING
+if(any(duplicated(inventory$Tag))) {
+  warning("We have duplicated tree tags!")
+}
 
 shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
 
 # Create new dataset with plot, species, and tag columns
 # by joining with the storm surge inventory data
-sla_calc %>% 
-  left_join(inventory, by = "Tag") %>% 
+
+sla_joined <- sla_calc %>% 
+  left_join(inventory, by = "Tag") 
+
+n_sla_premerge <- nrow(sla_calc)
+n_sla_joined <- nrow(sla_joined)
+
+message("Rows in sla_calc: ", n_sla_premerge)
+message("Rows in sla_joined: ", n_sla_joined)
+if(n_sla_joined != n_sla_premerge) {
+  warning("We have a problem!")
+}
+
+sla_joined %>% 
   # if NA DBH, then get information from what we measured in field
   mutate(DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
          Species_code = if_else(is.na(Species_code), No_Tag_Species_code, Species_code),
          Plot = if_else(is.na(Plot), No_Tag_Plot, Plot)) %>% 
   # We only want four letter species codes, and want to add an elevation column 
   mutate(Species_code = substr(Species_code, 1,4), 
-         Elevation = if_else(Plot %in% shoreline_plots, "Shoreline", "Upland")) -> 
-  sla_joined
+         Elevation = if_else(Plot %in% shoreline_plots, "Shoreline", "Upland")) 
+n_sla_joined <- nrow(sla_joined)
+
+# At this point, everything should have a DBH entry
+if( ) {
+warning()  
+}   
+
 
 # NEW: Want ONLY ACRU, FAGR, LIST, NYSY, QUAL, LITU species!
 sla_joined_simple <- sla_joined %>% 
