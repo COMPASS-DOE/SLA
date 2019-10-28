@@ -68,12 +68,13 @@ if(any(duplicated(ss_inventory$Tag))) {
 
 # Read in transplant inventory data
 inventory <- read.csv("inventory.csv", stringsAsFactors = FALSE) %>% 
-  select(Plot, Tag, Species_code, DBH = DBH_cm_2019) %>% 
+  select(Plot, Tag, Species_code, DBH = DBH_cm_2019, Notes) %>% 
   mutate(Tag = as.character(Tag)) 
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
 if(any(duplicated(inventory$Tag))) {
-  warning("We have duplicate tree tags in transplant inventory!")
+  warning("We have duplicate tree tags in transplant inventory!\n")
+  paste("Index:", which(duplicated(inventory$Tag)))
 }
 
 # Combine Storm Surge inventory with Transplant inventory
@@ -107,7 +108,7 @@ if(n_sla_joined != n_sla_premerge) {
   warning("We have a problem!")
 }
 
-sla_joined %>% 
+sla_joined <- sla_joined %>% 
   # if NA DBH, then get information from what we measured in field
   mutate(DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
          Species_code = if_else(is.na(Species_code), No_Tag_Species_code, Species_code),
@@ -118,10 +119,10 @@ sla_joined %>%
 n_sla_joined <- nrow(sla_joined)
 
 # At this point, everything should have a DBH entry
-if( ) {
-warning()  
+if(any(is.na(sla_joined$DBH))) {
+warning("Missing DBH!\n") 
+  paste("Tag:", sla_joined$Tag[which(is.na(sla_joined$DBH))])
 }   
-
 
 # NEW: Want ONLY ACRU, FAGR, LIST, NYSY, QUAL, LITU species!
 sla_joined_simple <- sla_joined %>% 
@@ -130,7 +131,8 @@ sla_joined_simple <- sla_joined %>%
 # At this point there should be NO data with an NA for Plot or DBH or Species_code
 # Warn if this occurs
 if(any(is.na(sla_joined_simple$DBH))) {
-  warning("We still have unmatched trees!")  
+  warning("We still have unmatched trees!\n")
+  paste("Tag:", sla_joined_simple$Tag[which(is.na(sla_joined_simple$DBH))])
 }
 if(any(sla_joined_simple$Species_code == "")) {
   warning("We have blank species codes!")  
@@ -141,9 +143,8 @@ species_codes <- read.csv(file = "Design/species_codes.csv", stringsAsFactors = 
 sla <- left_join(sla_joined_simple, species_codes, by = "Species_code")
 
 ## Adding Salinity Column 
-Shoreline_plots <- c("LSLE", "MSLE", "HSLE", "Shore")
-Salinity <- c("Low Salinity", "Medium Salinity", "High Salinity", "High Salinity")
-df <- data.frame(Shoreline_plots, Salinity)
+Salinity <- c("High Salinity", "High Salinity", "Medium Salinity", "Low Salinity")
+df <- data.frame(shoreline_plots, Salinity)
 
 sla_shoreline <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
