@@ -159,14 +159,14 @@ Date,Tag,No_Tag_Plot,No_Tag_Species_code,No_Tag_DBH,Position,n_Leaves,Leaf_Area_
 8/23/2019,122,,,,Low/Shade,5,396.87,2.29,
 8/23/2019,113,,,,Low/Shade,6,142.6,0.42,
 8/23/2019,115,,,,Low/Shade,6,208.04,0.69,
-8/23/2019,FG010158,,,,Low/Shade,6,315.56,1.27,off east edge of plot
-8/23/2019,FG010159,,,,Low/Shade,6,210.48,0.83,off east edge of plot
+8/23/2019,FG010158,LSLE,LIST,,Low/Shade,6,315.56,1.27,off east edge of plot
+8/23/2019,FG010159,LSLE,LIST,,Low/Shade,6,210.48,0.83,off east edge of plot
 8/23/2019,,LSLE,LIST,2,Low/Shade,6,232.19,1.01,south of collar 22
 8/23/2019,139,,,,Low/Shade,6,332.39,1.47,
 8/23/2019,FG010264,LSME,LIST,,Low/Shade,6,191.61,0.58,"out of plot: downhill edge of plot, mid-elevation"
 8/23/2019,FG010679,,,,Low/Shade,6,230.36,0.73,
 8/23/2019,FG010086,,,,Low/Shade,2.5,109.33,0.44,
-8/23/2019,FG010257,,,2.5,Low/Shade,4,262.7,1.13,"Remeasure if possible, 5m downhill"
+8/23/2019,FG010257,LSHE,LIST,2.5,Low/Shade,4,262.7,1.13,"Remeasure if possible, 5m downhill"
 8/23/2019,FG010157,LSLE,NYSY,3,Low/Shade,6,277.47,0.72,east edge of plot
 8/23/2019,114,,,,Low/Shade,6,216.72,0.77,
 8/23/2019,135,,,,Low/Shade,6,108.17,0.28,
