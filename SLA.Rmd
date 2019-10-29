@@ -63,7 +63,7 @@ ss_inventory <- read.csv("ss-inventory.csv", stringsAsFactors = FALSE) %>%
   mutate(Tag = as.character(Tag))
 
 if(any(duplicated(ss_inventory$Tag))) {
-  warning("We have duplicate tree tags in SS inventory!")
+  warning("We have duplicate tree tags in SS inventory!\n")
 }
 
 # Read in transplant inventory data
@@ -85,7 +85,7 @@ inventory <- inventory %>%
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
 if(any(duplicated(inventory$Tag))) {
-  warning("We have duplicated tree tags!")
+  warning("We have duplicated tree tags!\n")
 }
 
 shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
@@ -105,7 +105,7 @@ n_sla_joined <- nrow(sla_joined)
 message("Rows in sla_calc: ", n_sla_premerge)
 message("Rows in sla_joined: ", n_sla_joined)
 if(n_sla_joined != n_sla_premerge) {
-  warning("We have a problem!")
+  warning("We have a problem!\n")
 }
 
 sla_joined <- sla_joined %>% 
@@ -142,15 +142,23 @@ if(any(sla_joined_simple$Species_code == "")) {
 species_codes <- read.csv(file = "Design/species_codes.csv", stringsAsFactors = FALSE) 
 sla <- left_join(sla_joined_simple, species_codes, by = "Species_code")
 
+# QC
+n_sla_joined_simple <- nrow(sla_joined_simple)
+n_sla <- nrow(sla)
+message("Rows in sla_joined_simple: ", n_sla_joined_simple)
+message("Rows in sla: ", n_sla)
+if(n_sla_joined_simple != n_sla) {
+  warning("We have a problem!\n")
+}
+
 ## Adding Salinity Column 
 Salinity <- c("High Salinity", "High Salinity", "Medium Salinity", "Low Salinity")
 df <- data.frame(shoreline_plots, Salinity)
+names(df)[names(df)=="shoreline_plots"] <- "Plot"
 
 sla_shoreline <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-  mutate(Salinity = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-         Salinity = if_else(Plot == "MSLE", "Medium salinity", Plot),
-         Salinity = if_else(Plot == "LSLE", "Low salinity", Plot)) 
+  left_join(df, by = "Plot")
 
 ```
 
