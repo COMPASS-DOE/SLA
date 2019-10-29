@@ -173,6 +173,15 @@ sla %>%
                caption = "Table 1: Specific Leaf Area by Species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
+# Table 2
+sla %>% 
+  group_by(Species_common, Plot) %>% 
+  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  knitr::kable(digits = 1, format = "html", 
+               col.names = c("Species", "Plot", "n", "Average SLA cm2/g", "SD"), 
+               caption = "Table 2: Specific Leaf Area by Species") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+
 # Elevation summary
 sla %>% 
   group_by(Elevation) %>% 
@@ -426,9 +435,5 @@ lai <- avg_litter %>%
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   group_by(Plot) %>% 
   summarise(lai_plot = round(sum(LAI), 2))
-
-lai %>% 
-  ggplot(aes()) +
-  coordi
 
 ```
