@@ -23,6 +23,8 @@ library(gganimate)
 library(cowplot)
 library(wesanderson)
 theme_set(theme_bw())
+library(devtools)
+library(nationalparkcolors)
 ```
 
 ## Motivation
@@ -256,11 +258,13 @@ print(leaves_vs_mass)
 
 ### Results
 ```{r Average Specific Leaf Area, echo = FALSE}
+pal <- park_palette("Arches", 6)
 #SLA Box Plot
 sla_averages_plot <- sla %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
   labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
   geom_boxplot(aes(fill = Species_common)) + 
+  scale_fill_manual(values = pal) +
   #geom_text(aes(label = round(Specific, 2)), vjust = 1.6, size = 3.3) +
   theme(axis.text.x = element_text(angle = 90)) +
   guides(fill=guide_legend(title="Species"))
@@ -271,10 +275,9 @@ print(sla_averages_plot)
 # Specific Leaf Area by Plot
 
 sla_by_elev <- sla %>% 
-  ggplot(aes(Species_common, specific_leaf_area, color = Elevation, fill = Elevation)) +
+  ggplot(aes(Species_common, specific_leaf_area, fill = Elevation)) +
   geom_boxplot() +
-  scale_color_manual(values = wes_palette(n = 2, name = "GrandBudapest1")) +
-  scale_fill_manual(values = wes_palette(n = 2, name = "GrandBudapest1")) +
+  scale_fill_manual(values = pal) +
   theme(axis.text.x = element_text(angle = 90)) +
   labs(title = "Specific Leaf Area by Elevation", x = "Species", y = "Specific Leaf Area")
 print(sla_by_elev)
@@ -300,7 +303,8 @@ sla_vs_dbh <- sla %>%
   geom_point() + 
   facet_wrap(~Species_common) +
   geom_smooth(method = "lm") +
-  labs(title = "Specific Leaf Area vs. Tree Diameter", y = "Specific Leaf Area (cm2/g)", x = "Diameter at Breast Height (cm)", color = "Species")
+  scale_color_manual(values = pal) +
+  labs(title = "Specific Leaf Area vs. Tree Diameter", y = "Specific Leaf Area (cm2/g)", x = "Diameter at Breast Height (cm)", color = "Species_common")
 print(sla_vs_dbh)
 ```
 
@@ -320,7 +324,7 @@ sla_sal_gradient <- sla %>%
   geom_violin(aes(fill = Plot)) +
   theme(legend.position = "none") +
   labs(title = "Specific Leaf Area along Natural Salinity Gradient", y = "Specific Leaf Area (cm2/g)") +
-  scale_fill_manual(values = wes_palette("GrandBudapest1", n = 3))
+  scale_fill_manual(values = pal)
 print(sla_sal_gradient)
 
 ```
@@ -435,15 +439,14 @@ inventory %>%
   summarise(weight = sum(DBH^2)) ->
   plot_weights
 
-sla_for_lai %>% 
+sla_for_lai <- sla_for_lai %>% 
   left_join(plot_weights, by = c("Plot", "Species_code")) %>% 
   filter(!is.na(weight)) %>% 
   group_by(Plot) %>% 
   summarise(Species_code = "OTHER",
             avg_sla = weighted.mean(avg_sla, w = weight)) %>% 
   # Now bind the SLA means with our new SLA_other data
-  bind_rows(sla_for_lai) ->
-  sla_for_lai
+  bind_rows(sla_for_lai) 
 
 # We have litter data, but no SLA samples, from HSHE/HSME/HSLE
 # For these we will use control and/or shore
