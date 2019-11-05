@@ -451,7 +451,7 @@ sla_for_lai <- sla_for_lai %>%
 # We have litter data, but no SLA samples, from HSHE/HSME/HSLE
 # For these we will use control and/or shore
 # Make a table that tells us what plot's SLA to use for each plot
-sla_map <- tibble(Plot = unique(sla_for_lai$Plot),
+sla_map <- tibble(Plot = unique(avg_litter$Plot),
                   Use_SLA_from_plot = Plot)
 sla_map$Use_SLA_from_plot[sla_map$Plot %in% c("HSHE", "HSME")] <- "Control"
 sla_map$Use_SLA_from_plot[sla_map$Plot == "HSLE"] <- "Shore"
@@ -462,6 +462,10 @@ lai <- avg_litter %>%
   left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) %>% 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   group_by(Plot) %>% 
-  summarise(lai_plot = round(sum(LAI), 2))
+  # In 467, we are removing NAs from lack of certain species in some plots, int he future we want to
+  # use the average values to fill these in
+  # Maybe we do this above, in 454-457, just by using overall mean values instead of a map
+  summarise(lai_plot = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+  arrange(Plot)
 
 ```
