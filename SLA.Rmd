@@ -406,11 +406,9 @@ avg_litter <- litter_data_raw %>%
   select(Plot, Trap, Date_collected, Species, Value) %>% 
   # Traps are 0.5 m2, convert to 1 m2
   mutate(Value = Value * 2) %>% 
-  # Compute plot average by date and species
-  group_by(Plot, Species, Date_collected) %>% 
-  summarise(avg_litter_mass = mean(Value, na.rm = TRUE)) %>% 
-  # Sum across all dates (g litter/yr)
-  summarise(annual_litter_mass = round(sum(avg_litter_mass, na.rm = TRUE), 2)) %>% 
+  # Compute sum of leaf biomass for each trap and species 
+  group_by(Plot, Species, Trap) %>% 
+  summarise(annual_litter_mass = round(sum(Value, na.rm = TRUE), 2)) %>% 
   # Add species codes
   mutate(Species_code = species_litter_map[Species])
 
@@ -460,12 +458,15 @@ sla_map$Use_SLA_from_plot[sla_map$Plot == "HSLE"] <- "Shore"
 lai <- avg_litter %>% 
   left_join(sla_map, by = "Plot") %>% 
   left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) %>% 
+  # SLA is in cm2/g, convert to m2/g for LAI reporting 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
-  group_by(Plot) %>% 
-  # In 467, we are removing NAs from lack of certain species in some plots, int he future we want to
+  group_by(Plot, Trap) %>% 
+  # In 467, we are removing NAs from lack of certain species in some plots, in the future we want to
   # use the average values to fill these in
   # Maybe we do this above, in 454-457, just by using overall mean values instead of a map
-  summarise(lai_plot = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+  summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+  summarise(lai_plot = round(mean(lai_trap), 2), 
+            lai_plot_sd = round(sd(lai_trap), 2)) %>% 
   arrange(Plot)
 
 ```
