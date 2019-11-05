@@ -397,6 +397,11 @@ species_litter_map <- c("M_leaf_beech" = "FAGR",
                         "M_leaf_tulip" = "LITU",
                         "M_leaf_other" = "OTHER")  # temporary
 
+# litter_data_raw <- tibble(Plot = "HSLE",
+#                          Trap = "A",
+#                          M_leaf_beech = 100,
+#                          Date_collected = c("9/15/2019", "8/15/2019"))
+
 avg_litter <- litter_data_raw %>% 
   # filter for exactly one year of litter data
   mutate(Date_collected = mdy(Date_collected)) %>% 
@@ -408,7 +413,7 @@ avg_litter <- litter_data_raw %>%
   mutate(Value = Value * 2) %>% 
   # Compute sum of leaf biomass for each trap and species 
   group_by(Plot, Species, Trap) %>% 
-  summarise(annual_litter_mass = round(sum(Value, na.rm = TRUE), 2)) %>% 
+  summarise(annual_litter_mass = round(sum(Value, na.rm = TRUE), 2)) %>%
   # Add species codes
   mutate(Species_code = species_litter_map[Species])
 
@@ -467,6 +472,7 @@ lai <- avg_litter %>%
   summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2)) %>% 
   summarise(lai_plot = round(mean(lai_trap), 2), 
             lai_plot_sd = round(sd(lai_trap), 2)) %>% 
-  arrange(Plot)
+  arrange(Plot) %>% 
+  print()
 
 ```
