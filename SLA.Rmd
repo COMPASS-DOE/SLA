@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r Load Packages, include=FALSE} 
 ## Load necessary packages
+library(car)
 library(dplyr)
 library(tidyr)
 library(readr)
@@ -24,7 +25,7 @@ library(cowplot)
 library(wesanderson)
 theme_set(theme_bw())
 library(devtools)
-library(nationalparkcolors)
+library(nationalparkcolors)  # devtools::install_github("katiejolly/nationalparkcolors")
 ```
 
 ## Motivation
@@ -44,10 +45,9 @@ Map of SERC with plots labeled:
 
 SLA is calculated using the ratio between a leaf's one-sided fresh leaf area and its total dry mass. 
 
-```{r SLA Calculation}
+```{r read-sla}
 ## ----- Read in the SLA csv -----
-sla_raw <- read.csv("SLA Data.csv", stringsAsFactors = FALSE) %>% 
-  mutate(Tag = as.character(Tag)) 
+sla_raw <- read_csv("SLA Data.csv", col_types = "ccccdcdddc")
 
 ## ----- SLA Calculation -----
 sla_calc <- sla_raw %>% 
@@ -55,46 +55,40 @@ sla_calc <- sla_raw %>%
 ```
 
 ## Inventory Data
-```{r SLA Inventory, error = FALSE}
-## ----- Join with inventory data -----
 
+```{r read-inventory}
 ## Read in the storm surge inventory data 
 # Storm surge inventory doesn't include the shore plot at GCREW!
-ss_inventory <- read.csv("ss-inventory.csv", stringsAsFactors = FALSE) %>% 
-  select(Plot, Species_code, Tag, DBH) %>% 
-  mutate(Tag = as.character(Tag))
+ss_inventory <- read_csv("ss-inventory.csv", col_types = "c-cd-c----")
 
 if(any(duplicated(ss_inventory$Tag))) {
   warning("We have duplicate tree tags in SS inventory!\n")
 }
 
 # Read in transplant inventory data
-inventory <- read.csv("inventory.csv", stringsAsFactors = FALSE) %>% 
-  select(Plot, Tag, Species_code, DBH = DBH_cm_2019, Notes) %>% 
-  mutate(Tag = as.character(Tag)) 
+transplant_inventory <- read_csv("inventory.csv", col_types = "-cc-c---d--c") %>% 
+  select(Plot, Tag, Species_code, DBH = DBH_cm_2019, Notes)
+
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
-if(any(duplicated(inventory$Tag))) {
+if(any(duplicated(transplant_inventory$Tag))) {
   warning("We have duplicate tree tags in transplant inventory!\n")
-  paste("Index:", which(duplicated(inventory$Tag)))
+  paste("Index:", which(duplicated(transplant_inventory$Tag)))
 }
 
 # Combine Storm Surge inventory with Transplant inventory
-inventory <- inventory %>% 
-  # Bind with storm surge inventory 
-   bind_rows(ss_inventory)
+inventory <- bind_rows(transplant_inventory, ss_inventory)
 
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
 if(any(duplicated(inventory$Tag))) {
   warning("We have duplicated tree tags!\n")
 }
+```
 
-shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
+## Join SLA and inventory data
 
-# Create new dataset with plot, species, and tag columns
-# by joining with the storm surge inventory data
-
+```{r join-sla-inventory, error = FALSE}
 # Make blank Tag values NAs to stop duplicates when joining
 sla_calc$Tag[which(sla_calc$Tag == "")] <- NA
 
@@ -110,6 +104,9 @@ if(n_sla_joined != n_sla_premerge) {
   warning("We have a problem!\n")
 }
 
+
+shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
+
 sla_joined <- sla_joined %>% 
   # if NA DBH, then get information from what we measured in field
   mutate(DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
@@ -122,7 +119,7 @@ n_sla_joined <- nrow(sla_joined)
 
 # At this point, everything should have a DBH entry
 if(any(is.na(sla_joined$DBH))) {
-warning("Missing DBH!\n") 
+  warning("Missing DBH!\n") 
   paste("Tag:", sla_joined$Tag[which(is.na(sla_joined$DBH))])
 }   
 
@@ -141,7 +138,7 @@ if(any(sla_joined_simple$Species_code == "")) {
 }
 
 ## Join sla_joined_simple with plot species_codes
-species_codes <- read.csv(file = "Design/species_codes.csv", stringsAsFactors = FALSE) 
+species_codes <- read_csv("Design/species_codes.csv", col_types = "ccc")
 sla <- left_join(sla_joined_simple, species_codes, by = "Species_code")
 
 # QC
@@ -154,14 +151,11 @@ if(n_sla_joined_simple != n_sla) {
 }
 
 ## Adding Salinity Column 
-Salinity <- c("High Salinity", "High Salinity", "Medium Salinity", "Low Salinity")
-df <- data.frame(shoreline_plots, Salinity)
-names(df)[names(df)=="shoreline_plots"] <- "Plot"
-
+df <- tibble(Plot = shoreline_plots, 
+             Salinity = c("High Salinity", "High Salinity", "Medium Salinity", "Low Salinity"))
 sla_shoreline <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
   left_join(df, by = "Plot")
-
 ```
 
 ### Summary Tables
@@ -170,7 +164,9 @@ sla_shoreline <- sla %>%
 # Table 1: Specific Leaf Area by Species
 sla %>% 
   group_by(Species_common) %>% 
-  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  summarise(n = n(), 
+            mean_SLA = mean(specific_leaf_area), 
+            sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 1: Specific Leaf Area by Species") %>% 
@@ -179,7 +175,9 @@ sla %>%
 # Table 2: Specific Leaf Area by Species and Plot
 sla %>% 
   group_by(Species_common, Plot) %>% 
-  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  summarise(n = n(), 
+            mean_SLA = mean(specific_leaf_area), 
+            sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "Plot", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 2: Specific Leaf Area by Species") %>% 
@@ -189,7 +187,9 @@ sla %>%
 # Table 3: SLA Elevation Gradient
 sla %>% 
   group_by(Elevation) %>% 
-  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  summarise(n = n(), 
+            mean_SLA = mean(specific_leaf_area), 
+            sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Elevation", "n", "Average SLA cm2/g", "SD"),
                caption = "Table 3: SLA Elevation Gradient") %>% 
@@ -199,7 +199,9 @@ sla %>%
 # Table 4: SLA Canopy Position
 sla %>%
   group_by(Species_common, Position) %>% 
-  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  summarise(n = n(),
+            mean_SLA = mean(specific_leaf_area),
+            sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "Canopy Position", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 4: SLA Canopy Position") %>% 
@@ -209,7 +211,9 @@ sla %>%
 # Table 5: SLA Along Salinity Gradient
 sla_shoreline %>%
   group_by(Species_common, Salinity) %>% 
-  summarise(n = n(), mean_SLA = mean(specific_leaf_area), sd_SLA = sd(specific_leaf_area)) %>% 
+  summarise(n = n(), 
+            mean_SLA = mean(specific_leaf_area), 
+            sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "Salinity Exposure", "n", "Average SLA cm2/g", "SD"),
                caption = "Table 5: SLA Along Salinity Gradient") %>% 
@@ -225,7 +229,8 @@ sla_shoreline %>%
 
 sla_shoreline %>%
   group_by(Species_common, Salinity) %>% 
-  summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 2), "+/-", round(sd(specific_leaf_area), digits = 2))) %>% 
+  summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 2), "+/-",
+                             round(sd(specific_leaf_area), digits = 2))) %>% 
   spread(Salinity, mean_SLA) %>% 
   knitr::kable(digits = 1, format = "html",
                col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
@@ -304,7 +309,9 @@ sla_vs_dbh <- sla %>%
   facet_wrap(~Species_common) +
   geom_smooth(method = "lm") +
   scale_color_manual(values = pal) +
-  labs(title = "Specific Leaf Area vs. Tree Diameter", y = "Specific Leaf Area (cm2/g)", x = "Diameter at Breast Height (cm)", color = "Species_common")
+  labs(title = "Specific Leaf Area vs. Tree Diameter", 
+       y = "Specific Leaf Area (cm2/g)", 
+       x = "Diameter at Breast Height (cm)", color = "Species_common")
 print(sla_vs_dbh)
 ```
 
@@ -323,7 +330,8 @@ sla_sal_gradient <- sla %>%
   ggplot(aes(Plot, specific_leaf_area)) +
   geom_violin(aes(fill = Plot)) +
   theme(legend.position = "none") +
-  labs(title = "Specific Leaf Area along Natural Salinity Gradient", y = "Specific Leaf Area (cm2/g)") +
+  labs(title = "Specific Leaf Area along Natural Salinity Gradient",
+       y = "Specific Leaf Area (cm2/g)") +
   scale_fill_manual(values = pal)
 print(sla_sal_gradient)
 
@@ -336,13 +344,10 @@ print(sla_sal_gradient)
 gcrew_comparison <- sla %>% 
   group_by(Tag) %>% 
   filter(n_distinct(Date) > 1)
-
 ```
 
 ## Statistics 
 ```{r Statistics, echo = FALSE, }
-library(car)
-
 # Does SLA differ between species? An overall test
 m_species <- lm(specific_leaf_area ~ Species_common, data = sla)
 TukeyHSD(aov(m_species))
@@ -406,10 +411,10 @@ avg_litter <- litter_data_raw %>%
   # filter for exactly one year of litter data
   mutate(Date_collected = mdy(Date_collected)) %>% 
   filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
-  # restructure data
+  # restructure data, using only leaf litter
   gather(Species, Value, starts_with("M_leaf")) %>% 
   select(Plot, Trap, Date_collected, Species, Value) %>% 
-  # Traps are 0.5 m2, convert to 1 m2
+  # Traps are 0.5 m2; convert to 1 m2
   mutate(Value = Value * 2) %>% 
   # Compute sum of leaf biomass for each trap and species 
   group_by(Plot, Species, Trap) %>% 
@@ -419,11 +424,10 @@ avg_litter <- litter_data_raw %>%
 
 # bar graph 
 avg_litter_plot <- avg_litter %>% 
-  ggplot(aes(Species_code, annual_litter_mass)) +
+  ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
-  geom_text(aes(label = annual_litter_mass)) +
   facet_wrap(~Plot) +
-  labs(title = "Average Litter Mass per Plot", x = "Species", y = "Average Litter Mass (g/m2)")
+  labs(title = "Average Litter Mass by Plot", y = "Litter Mass (g/m2)")
 print(avg_litter_plot)
 
 # join with SLA data 
