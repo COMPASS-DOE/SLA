@@ -428,7 +428,7 @@ avg_litter_plot <- avg_litter %>%
   ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
   facet_wrap(~Plot) +
-  labs(title = "Average Litter Mass by Plot", y = "Litter Mass (g/m2)")
+  labs(title = "Leaf litterfal by plot and trap", y = "Leaf litterfall (g/m2)")
 print(avg_litter_plot)
 
 # join with SLA data 
@@ -464,11 +464,17 @@ sla_map <- tibble(Plot = unique(avg_litter$Plot),
 sla_map$Use_SLA_from_plot[sla_map$Plot %in% c("HSHE", "HSME")] <- "Control"
 sla_map$Use_SLA_from_plot[sla_map$Plot == "HSLE"] <- "Shore"
 
-
-lai <- avg_litter %>% 
+avg_litter %>% 
   left_join(sla_map, by = "Plot") %>% 
-  left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) %>% 
-  # SLA is in cm2/g, convert to m2/g for LAI reporting 
+  left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) ->
+  sla_litter_joined
+
+if(nrow(avg_litter) != nrow(sla_litter_joined)) {
+  stop("These joins should not have added any rows, but they did!")
+}
+
+lai <- sla_litter_joined %>% 
+  # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   group_by(Plot, Trap) %>% 
   # In 467, we are removing NAs from lack of certain species in some plots, in the future we want to
