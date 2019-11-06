@@ -77,7 +77,8 @@ if(any(duplicated(transplant_inventory$Tag))) {
 }
 
 # Combine Storm Surge inventory with Transplant inventory
-inventory <- bind_rows(transplant_inventory, ss_inventory)
+inventory <- bind_rows(transplant_inventory, ss_inventory) %>% 
+  filter(!is.na(Tag))
 
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
