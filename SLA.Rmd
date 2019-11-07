@@ -339,6 +339,44 @@ gcrew_comparison <- sla %>%
 
 ```
 
+## TRY comparison
+```{r try-comparison, echo=FALSE}
+# There is an invalid string for locale in the download file that screwing things up
+# Workaround:
+trydata_raw <- readLines("try_data/7603.txt")
+# 3116: Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): petiole included
+trydata <- suppressWarnings(c(trydata_raw[1], trydata_raw[grep("3116", trydata_raw)]))
+textConnection(trydata) %>% 
+  read.table(sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
+  as_tibble() %>% 
+  select(SpeciesName, OrigValueStr, OrigUnitStr) %>% 
+  mutate(SLA = as.numeric(OrigValueStr),
+         Source = "TRY") %>% 
+  filter(!is.na(SLA)) ->
+  trydata
+
+species <- c("FAGR" = "Fagus grandifolia", 
+             "ACRU" = "Acer rubrum",
+             "LITU" = "Liriodendron tulipifera",
+             "LIST" = "Liquidambar styraciflua",
+             "NYSY" = "Nyssa sylvatica",
+             "QUAL" = "Quercus alba",
+             "QURU" = "Quercus rubra")
+sla %>% 
+  select(Species_common, Species_code, SLA = specific_leaf_area) %>% 
+  mutate(SpeciesName = species[Species_code],
+         Source = "Haddock et al.") %>% 
+  bind_rows(trydata) %>% 
+  filter(SLA < 600) ->
+  combined_data
+
+ggplot(combined_data, aes(x = SLA, fill = Source)) + 
+  geom_density(alpha = 0.5) + 
+  facet_wrap(~SpeciesName) +
+  xlab("SLA (cm2/g)") +
+  ggtitle("TRY comparison")
+```
+
 ## Statistics 
 ```{r Statistics, echo = FALSE, }
 library(car)
