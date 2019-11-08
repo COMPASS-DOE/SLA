@@ -36,6 +36,7 @@ vignettes/*.pdf
 rsconnect/
 
 *.html
+.DS_Store
 
 # Poster and Paper Figures
 poster_figures/*.png
