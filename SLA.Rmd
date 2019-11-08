@@ -167,7 +167,10 @@ sla %>%
   group_by(Species_common) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area)) %>% 
+            sd_SLA = sd(specific_leaf_area)) ->
+  n_by_species
+
+n_by_species %>% 
   knitr::kable(digits = 1, format = "html", 
                col.names = c("Species", "n", "Average SLA cm2/g", "SD"), 
                caption = "Table 1: Specific Leaf Area by Species") %>% 
@@ -262,9 +265,25 @@ print(leaves_vs_mass)
 
 ```
 
+``` {r}
+pal <- park_palette("Arches", 6)
+```
+### Poster Figures
+``` {r}
+# Figure 1
+fig1 <- sla %>% 
+  left_join(n_by_species, by = "Species_common") %>% 
+  mutate(xlabel = paste(Species_common, n, sep = "\nN = ")) %>% 
+  ggplot(aes(xlabel, specific_leaf_area)) +
+  labs(title = "", x = "Species", y = expression(SLA~(cm^2~g^-1))) + # "SLA (cm2/g)") +
+  geom_boxplot(aes(fill = Position)) + 
+  scale_fill_manual(values = pal) 
+print(fig1)
+ggsave("poster_figures/fig1.png")
+
+```
 ### Results
 ```{r Average Specific Leaf Area, echo = FALSE}
-pal <- park_palette("Arches", 6)
 #SLA Box Plot
 sla_averages_plot <- sla %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
