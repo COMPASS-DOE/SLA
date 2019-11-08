@@ -153,10 +153,11 @@ if(n_sla_joined_simple != n_sla) {
 
 ## Adding Salinity Column 
 df <- tibble(Plot = shoreline_plots, 
-             Salinity = c("High Salinity", "High Salinity", "Medium Salinity", "Low Salinity"))
+             Salinity = c("High", "High", "Medium", "Low"))
 sla_shoreline <- sla %>% 
   filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-  left_join(df, by = "Plot")
+  left_join(df, by = "Plot") %>% 
+  mutate(Salinity = factor(Salinity, levels = c("Low", "Medium", "High")))
 ```
 
 ### Summary Tables
@@ -281,6 +282,31 @@ fig1 <- sla %>%
 print(fig1)
 ggsave("poster_figures/fig1.png")
 
+# Figure 2
+fig2a <- sla %>% 
+  ggplot(aes(Species_common, specific_leaf_area)) +
+  labs(title = "", x = "Species", y = expression(SLA~(cm^2~g^-1))) + # "SLA (cm2/g)") +
+  geom_boxplot(aes(fill = Elevation)) + 
+  scale_fill_manual(values = pal) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank())
+print(fig2a)
+ggsave("poster_figures/fig2a.png")
+
+# For salinity, add a dummy tulip poplar row so a blank category is displayed
+fig2b <- tibble(Species_common = "Tulip poplar", specific_leaf_area = NA, Salinity = NA) %>% 
+  bind_rows(sla_shoreline) %>% 
+  ggplot(aes(Species_common, specific_leaf_area)) +
+  labs(title = "", x = "Species", y = expression(SLA~(cm^2~g^-1))) + # "SLA (cm2/g)") +
+  geom_boxplot(aes(fill = Salinity)) + 
+  scale_fill_manual(values = pal)
+print(fig2b)
+ggsave("poster_figures/fig2b.png")
+
+fig2 <- plot_grid(fig2a, fig2b, ncol = 1, nrow = 2)
+print(fig2)
+save_plot(filename = "poster_figures/fig2.png", plot = fig2)
+```
 ```
 ### Results
 ```{r Average Specific Leaf Area, echo = FALSE}
