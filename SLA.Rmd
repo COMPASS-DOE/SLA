@@ -11,21 +11,25 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r Load Packages, include=FALSE} 
 ## Load necessary packages
+library(data.table)
 library(car)
 library(dplyr)
 library(tidyr)
+library(tidyverse)
 library(readr)
 library(knitr)
 library(kableExtra)
 library(lubridate)
 library(ggrepel)
 library(ggplot2)
+library(ggmap)
 library(gganimate)
 library(cowplot)
 library(wesanderson)
 theme_set(theme_bw())
 library(devtools)
 library(nationalparkcolors)  # devtools::install_github("katiejolly/nationalparkcolors")
+
 ```
 
 ## Motivation
@@ -35,7 +39,17 @@ Specific leaf area (SLA, the ratio of leaf area to leaf dry mass) is an importan
 We investigate SLA differences between plots of varying elevation and salinity exposure along a tributary of the Chesapeake Bay. The goals of this project are to (i) quantify SLA of eight major tree species, at multiple canopy heights, in temperate deciduous forests at the Smithsonian Environmental Research Center (Maryland, USA); and (ii) test for effects of soil moisture and saltwater exposure on SLA by comparing samples taken at shoreline and upland positions, with the shoreline samples taken along a ~2 km tidal creek that provided a natural salinity gradient.
 
 Map of SERC with plots labeled: 
+``` {r SERC map}
+sites <- read.csv("Design/sites.csv")
+sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
+sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
 
+ggmap(sites_map) +
+  geom_point(data = sites, mapping = aes(x = Longitude, y = Latitude), color = "black", size = 1) +
+  geom_text(data = sites, aes(x = Longitude, y = Latitude, label = Plot)) +
+  labs(title = "SLA Sampling Plots", x = "Longitude", y = "Latitude", size = 1)
+
+```
 
 ## Methods
 
