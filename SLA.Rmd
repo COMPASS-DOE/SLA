@@ -40,14 +40,16 @@ We investigate SLA differences between plots of varying elevation and salinity e
 
 Map of SERC with plots labeled: 
 ``` {r SERC map}
-sites <- read.csv("Design/sites.csv")
+sites <- read.csv(file = "Design/sites.csv")
 sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
 sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
 
 ggmap(sites_map) +
   geom_point(data = sites, mapping = aes(x = Longitude, y = Latitude), color = "black", size = 1) +
-  geom_text(data = sites, aes(x = Longitude, y = Latitude, label = Plot)) +
-  labs(title = "SLA Sampling Plots", x = "Longitude", y = "Latitude", size = 1)
+  geom_text(data = sites, 
+            aes(x = Longitude, y = Latitude, label = Plot), 
+            size = 3) +
+  labs(title = "SLA Sampling Plots", x = "Longitude", y = "Latitude")
 
 ```
 
