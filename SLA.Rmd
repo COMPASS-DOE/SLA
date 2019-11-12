@@ -39,7 +39,7 @@ Specific leaf area (SLA, the ratio of leaf area to leaf dry mass) is an importan
 We investigate SLA differences between plots of varying elevation and salinity exposure along a tributary of the Chesapeake Bay. The goals of this project are to (i) quantify SLA of eight major tree species, at multiple canopy heights, in temperate deciduous forests at the Smithsonian Environmental Research Center (Maryland, USA); and (ii) test for effects of soil moisture and saltwater exposure on SLA by comparing samples taken at shoreline and upland positions, with the shoreline samples taken along a ~2 km tidal creek that provided a natural salinity gradient.
 
 Map of SERC with plots labeled: 
-``` {r SERC map}
+``` {r SERC map, echo=FALSE}
 sites <- read.csv(file = "Design/sites.csv")
 sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
 sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
@@ -76,7 +76,7 @@ sla_calc <- sla_raw %>%
 
 ## Inventory Data
 
-```{r read-inventory}
+```{r read-inventory, echo=FALSE}
 ## Read in the storm surge inventory data 
 # Storm surge inventory doesn't include the shore plot at GCREW!
 ss_inventory <- read_csv("ss-inventory.csv", col_types = "c-cd-c----")
@@ -181,7 +181,7 @@ sla_shoreline <- sla %>%
 ```
 
 ### Summary Tables
-```{r Summary Tables,echo= FALSE}
+```{r Summary Tables, echo = FALSE}
 # SLA
 # Table 1: Specific Leaf Area by Species
 sla %>% 
@@ -286,11 +286,11 @@ print(leaves_vs_mass)
 
 ```
 
-``` {r}
+``` {r color palette, echo=FALSE}
 pal <- park_palette("Arches", 6)
 ```
 ### Poster Figures
-``` {r}
+``` {r Poster Figures, echo=FALSE}
 # American Beech is too long! Shorten to Beech
 sla_poster <- sla %>% 
   mutate(Species_common = if_else(Species_common == "American beech", "Beech", Species_common))
@@ -335,10 +335,10 @@ fig2 <- plot_grid(fig2a, fig2b, ncol = 1, nrow = 2)
 print(fig2)
 save_plot(filename = "poster_figures/fig2.png", plot = fig2)
 ```
-```
+
 ### Results
 ```{r Average Specific Leaf Area, echo = FALSE}
-#SLA Box Plot
+# SLA Box Plot
 sla_averages_plot <- sla %>% 
 ggplot(aes(Species_common, specific_leaf_area)) +
 labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
@@ -514,6 +514,7 @@ species_litter_map <- c("M_leaf_beech" = "FAGR",
 "M_leaf_tulip" = "LITU",
 "M_leaf_other" = "OTHER")  # temporary
 
+# Test: tiny dataset 
 # litter_data_raw <- tibble(Plot = "HSLE",
 #                          Trap = "A",
 #                          M_leaf_beech = 100,
@@ -596,5 +597,29 @@ summarise(lai_plot = round(mean(lai_trap), 2),
 lai_plot_sd = round(sd(lai_trap), 2)) %>% 
 arrange(Plot) %>% 
 print()
+
+```
+
+``` {r litter poster figure, echo = FALSE}
+
+annual_litter <- litter_data_raw %>% 
+  # filter for exactly one year of litter data
+  mutate(Date_collected = mdy(Date_collected)) %>% 
+  filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
+  # restructure data, using only leaf litter
+  gather(Species, Value, starts_with("M_leaf")) %>% 
+  select(Plot, Trap, Date_collected, Species, Value) %>% 
+  # Traps are 0.5 m2; convert to 1 m2
+  mutate(Value = Value * 2) %>% 
+  # add all litter types together for each day of collection and each plot
+  group_by(Date_collected, Plot) %>% 
+  mutate(annual_litter = round(sum(Value), 2))
+
+# Line graph
+avg_litter_plot <- annual_litter %>% 
+  ggplot(aes(Date_collected,annual_litter, color = Plot)) +
+  geom_line() +
+  labs(title = "Annual Leaf Litterfall", x = "Date", y = "Leaf litterfall (g/m2)")
+print(avg_litter_plot)
 
 ```
