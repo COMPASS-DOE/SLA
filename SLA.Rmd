@@ -617,9 +617,9 @@ annual_litter <- litter_data_raw %>%
 
 # Line graph
 avg_litter_plot <- annual_litter %>% 
-  ggplot(aes(Date_collected,annual_litter, color = Plot)) +
+  ggplot(aes(lubridate::yday(Date_collected), annual_litter, color = Plot)) +
   geom_line() +
-  labs(title = "Annual Leaf Litterfall", x = "Date", y = "Leaf litterfall (g/m2)")
+  labs(title = "Annual Leaf Litterfall", x = "Day of year", y = "Leaf litterfall (g/m2)")
 print(avg_litter_plot)
 
 ```
