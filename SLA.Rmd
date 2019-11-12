@@ -613,7 +613,7 @@ annual_litter <- litter_data_raw %>%
   mutate(Value = Value * 2) %>% 
   # add all litter types together for each day of collection and each plot
   group_by(Date_collected, Plot) %>% 
-  mutate(annual_litter = round(sum(Value), 2))
+  mutate(annual_litter = mean(Value))
 
 # Line graph
 avg_litter_plot <- annual_litter %>% 
