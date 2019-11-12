@@ -48,8 +48,12 @@ map <- ggmap(sites_map) +
   geom_point(data = sites, mapping = aes(x = Longitude, y = Latitude), color = "black", size = 1) +
   geom_text(data = sites, 
             aes(x = Longitude, y = Latitude, label = Plot), 
-            size = 3) +
-  labs(title = "SLA Sampling Plots", x = "Longitude", y = "Latitude")
+            size = 3, vjust = 2) +
+  labs(x = "Longitude", y = "Latitude") +
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.01), expand = c(0,0))
+# +
+  # annotate(geom = "text", x = -76.565, y = 38.88, label = "Smithsonian Environmental\nResearch Center", size = 3)
+print(map)
 ggsave("poster_figures/map.png")
 ```
 
@@ -287,8 +291,14 @@ pal <- park_palette("Arches", 6)
 ```
 ### Poster Figures
 ``` {r}
+# American Beech is too long! Shorten to Beech
+sla_poster <- sla %>% 
+  mutate(Species_common = if_else(Species_common == "American beech", "Beech", Species_common))
+sla_shore_poster <- sla_shoreline %>% 
+   mutate(Species_common = if_else(Species_common == "American beech", "Beech", Species_common))
+
 # Figure 1
-fig1 <- sla %>% 
+fig1 <- sla_poster %>% 
   left_join(n_by_species, by = "Species_common") %>% 
   mutate(xlabel = paste(Species_common, n, sep = "\nN = ")) %>% 
   ggplot(aes(xlabel, specific_leaf_area)) +
@@ -297,9 +307,11 @@ fig1 <- sla %>%
   scale_fill_manual(values = pal) 
 print(fig1)
 ggsave("poster_figures/fig1.png")
+fig1alt <- plot_grid(fig1, ncol = 1, nrow = 1)
+save_plot(filename = "poster_figures/fig1alt.png", plot = fig1alt)
 
 # Figure 2
-fig2a <- sla %>% 
+fig2a <- sla_poster %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
   labs(title = "", x = "Species", y = expression(SLA~(cm^2~g^-1))) + # "SLA (cm2/g)") +
   geom_boxplot(aes(fill = Elevation)) + 
@@ -311,7 +323,7 @@ ggsave("poster_figures/fig2a.png")
 
 # For salinity, add a dummy tulip poplar row so a blank category is displayed
 fig2b <- tibble(Species_common = "Tulip poplar", specific_leaf_area = NA, Salinity = NA) %>% 
-  bind_rows(sla_shoreline) %>% 
+  bind_rows(sla_shore_poster) %>% 
   ggplot(aes(Species_common, specific_leaf_area)) +
   labs(title = "", x = "Species", y = expression(SLA~(cm^2~g^-1))) + # "SLA (cm2/g)") +
   geom_boxplot(aes(fill = Salinity)) + 
@@ -328,13 +340,13 @@ save_plot(filename = "poster_figures/fig2.png", plot = fig2)
 ```{r Average Specific Leaf Area, echo = FALSE}
 #SLA Box Plot
 sla_averages_plot <- sla %>% 
-  ggplot(aes(Species_common, specific_leaf_area)) +
-  labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
-  geom_boxplot(aes(fill = Species_common)) + 
-  scale_fill_manual(values = pal) +
-  #geom_text(aes(label = round(Specific, 2)), vjust = 1.6, size = 3.3) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  guides(fill=guide_legend(title="Species"))
+ggplot(aes(Species_common, specific_leaf_area)) +
+labs(title = "Average Specific Leaf Area", x = "Species", y = "Average SLA (cm2/g)") +
+geom_boxplot(aes(fill = Species_common)) + 
+scale_fill_manual(values = pal) +
+#geom_text(aes(label = round(Specific, 2)), vjust = 1.6, size = 3.3) +
+theme(axis.text.x = element_text(angle = 90)) +
+guides(fill=guide_legend(title="Species"))
 print(sla_averages_plot)
 ```
 
@@ -342,38 +354,38 @@ print(sla_averages_plot)
 # Specific Leaf Area by Plot
 
 sla_by_elev <- sla %>% 
-  ggplot(aes(Species_common, specific_leaf_area, fill = Elevation)) +
-  geom_boxplot() +
-  scale_fill_manual(values = pal) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "Specific Leaf Area by Elevation", x = "Species", y = "Specific Leaf Area")
+ggplot(aes(Species_common, specific_leaf_area, fill = Elevation)) +
+geom_boxplot() +
+scale_fill_manual(values = pal) +
+theme(axis.text.x = element_text(angle = 90)) +
+labs(title = "Specific Leaf Area by Elevation", x = "Species", y = "Specific Leaf Area")
 print(sla_by_elev)
 ```
 
 ```{r Specific Leaf Area by Species and Plot, echo = FALSE}
 # Specific Leaf Area by Species
 sla_by_species <- sla %>%
-  group_by(Species_common, Elevation) %>% 
-  summarise(avg_sla = mean(specific_leaf_area)) %>% 
-  ggplot(aes(Elevation, avg_sla)) +
-  geom_col() +
-  facet_wrap(~Species_common) +
-  #theme(axis.text.x = element_text(angle = 90)) +
-  labs(title = "Specific Leaf Area by Species and Plot", y = "Specific Leaf Area (cm2/g)")
+group_by(Species_common, Elevation) %>% 
+summarise(avg_sla = mean(specific_leaf_area)) %>% 
+ggplot(aes(Elevation, avg_sla)) +
+geom_col() +
+facet_wrap(~Species_common) +
+#theme(axis.text.x = element_text(angle = 90)) +
+labs(title = "Specific Leaf Area by Species and Plot", y = "Specific Leaf Area (cm2/g)")
 print(sla_by_species)
 ```
 
 ```{r Specific Leaf Area vs. Tree Diameter, echo = FALSE}
 # The Relationship Between Specific Leaf Area and Tree Diameter at Breast Height
 sla_vs_dbh <- sla %>% 
-  ggplot(aes(DBH, specific_leaf_area, color = Species_common)) +
-  geom_point() + 
-  facet_wrap(~Species_common) +
-  geom_smooth(method = "lm") +
-  scale_color_manual(values = pal) +
-  labs(title = "Specific Leaf Area vs. Tree Diameter", 
-       y = "Specific Leaf Area (cm2/g)", 
-       x = "Diameter at Breast Height (cm)", color = "Species_common")
+ggplot(aes(DBH, specific_leaf_area, color = Species_common)) +
+geom_point() + 
+facet_wrap(~Species_common) +
+geom_smooth(method = "lm") +
+scale_color_manual(values = pal) +
+labs(title = "Specific Leaf Area vs. Tree Diameter", 
+y = "Specific Leaf Area (cm2/g)", 
+x = "Diameter at Breast Height (cm)", color = "Species_common")
 print(sla_vs_dbh)
 ```
 
@@ -382,19 +394,19 @@ print(sla_vs_dbh)
 HML <- c("High salinity", "Medium salinity", "Low salinity")
 
 sla_sal_gradient <- sla %>% 
-  filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
-  # rename for clarity in this table only 
-  mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
-         Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
-         Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
-  mutate(Plot = factor(Plot, levels = HML)) %>% 
-  group_by(Species_common, Plot) %>% 
-  ggplot(aes(Plot, specific_leaf_area)) +
-  geom_violin(aes(fill = Plot)) +
-  theme(legend.position = "none") +
-  labs(title = "Specific Leaf Area along Natural Salinity Gradient",
-       y = "Specific Leaf Area (cm2/g)") +
-  scale_fill_manual(values = pal)
+filter(Plot %in% c("LSLE", "MSLE", "HSLE", "Shore")) %>% 
+# rename for clarity in this table only 
+mutate(Plot = if_else(Plot %in% c("HSLE", "Shore"), "High salinity", Plot),
+Plot = if_else(Plot == "MSLE", "Medium salinity", Plot),
+Plot = if_else(Plot == "LSLE", "Low salinity", Plot)) %>%
+mutate(Plot = factor(Plot, levels = HML)) %>% 
+group_by(Species_common, Plot) %>% 
+ggplot(aes(Plot, specific_leaf_area)) +
+geom_violin(aes(fill = Plot)) +
+theme(legend.position = "none") +
+labs(title = "Specific Leaf Area along Natural Salinity Gradient",
+y = "Specific Leaf Area (cm2/g)") +
+scale_fill_manual(values = pal)
 print(sla_sal_gradient)
 
 ```
@@ -404,8 +416,8 @@ print(sla_sal_gradient)
 # group by tree, filter by more than one unique date
 
 gcrew_comparison <- sla %>% 
-  group_by(Tag) %>% 
-  filter(n_distinct(Date) > 1)
+group_by(Tag) %>% 
+filter(n_distinct(Date) > 1)
 ```
 
 ## TRY comparison
@@ -416,34 +428,34 @@ trydata_raw <- readLines("try_data/7603.txt")
 # 3116: Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): petiole included
 trydata <- suppressWarnings(c(trydata_raw[1], trydata_raw[grep("3116", trydata_raw)]))
 textConnection(trydata) %>% 
-  read.table(sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
-  as_tibble() %>% 
-  select(SpeciesName, OrigValueStr, OrigUnitStr) %>% 
-  mutate(SLA = as.numeric(OrigValueStr),
-         Source = "TRY") %>% 
-  filter(!is.na(SLA)) ->
-  trydata
+read.table(sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
+as_tibble() %>% 
+select(SpeciesName, OrigValueStr, OrigUnitStr) %>% 
+mutate(SLA = as.numeric(OrigValueStr),
+Source = "TRY") %>% 
+filter(!is.na(SLA)) ->
+trydata
 
 species <- c("FAGR" = "Fagus grandifolia", 
-             "ACRU" = "Acer rubrum",
-             "LITU" = "Liriodendron tulipifera",
-             "LIST" = "Liquidambar styraciflua",
-             "NYSY" = "Nyssa sylvatica",
-             "QUAL" = "Quercus alba",
-             "QURU" = "Quercus rubra")
+"ACRU" = "Acer rubrum",
+"LITU" = "Liriodendron tulipifera",
+"LIST" = "Liquidambar styraciflua",
+"NYSY" = "Nyssa sylvatica",
+"QUAL" = "Quercus alba",
+"QURU" = "Quercus rubra")
 sla %>% 
-  select(Species_common, Species_code, SLA = specific_leaf_area) %>% 
-  mutate(SpeciesName = species[Species_code],
-         Source = "Haddock et al.") %>% 
-  bind_rows(trydata) %>% 
-  filter(SLA < 600) ->
-  combined_data
+select(Species_common, Species_code, SLA = specific_leaf_area) %>% 
+mutate(SpeciesName = species[Species_code],
+Source = "Haddock et al.") %>% 
+bind_rows(trydata) %>% 
+filter(SLA < 600) ->
+combined_data
 
 ggplot(combined_data, aes(x = SLA, fill = Source)) + 
-  geom_density(alpha = 0.5) + 
-  facet_wrap(~SpeciesName) +
-  xlab("SLA (cm2/g)") +
-  ggtitle("TRY comparison")
+geom_density(alpha = 0.5) + 
+facet_wrap(~SpeciesName) +
+xlab("SLA (cm2/g)") +
+ggtitle("TRY comparison")
 ```
 
 ## Statistics 
@@ -458,10 +470,10 @@ print(car::Anova(m_elevation))
 
 # Does SLA vary between high and low canopy position? Here we can use a PAIRED t-test
 sla %>% 
-  filter(mdy(Date) < mdy("8/1/2019")) %>% 
-  select(Plot, Species_common, DBH, Tag, Position, specific_leaf_area) %>% 
-  spread(Position, specific_leaf_area) -> 
-  sla_position
+filter(mdy(Date) < mdy("8/1/2019")) %>% 
+select(Plot, Species_common, DBH, Tag, Position, specific_leaf_area) %>% 
+spread(Position, specific_leaf_area) -> 
+sla_position
 
 tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
 print(tt_position)
@@ -498,9 +510,9 @@ litter_data_raw <- bind_rows(litter_1, litter_2, litter_3, litter_4, litter_5) %
 
 # This is our mapping from Species (as recorded in the litter data) to species code (as in SLA data)
 species_litter_map <- c("M_leaf_beech" = "FAGR",
-                        "M_leaf_oak" = "QUAL",
-                        "M_leaf_tulip" = "LITU",
-                        "M_leaf_other" = "OTHER")  # temporary
+"M_leaf_oak" = "QUAL",
+"M_leaf_tulip" = "LITU",
+"M_leaf_other" = "OTHER")  # temporary
 
 # litter_data_raw <- tibble(Plot = "HSLE",
 #                          Trap = "A",
@@ -508,81 +520,81 @@ species_litter_map <- c("M_leaf_beech" = "FAGR",
 #                          Date_collected = c("9/15/2019", "8/15/2019"))
 
 avg_litter <- litter_data_raw %>% 
-  # filter for exactly one year of litter data
-  mutate(Date_collected = mdy(Date_collected)) %>% 
-  filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
-  # restructure data, using only leaf litter
-  gather(Species, Value, starts_with("M_leaf")) %>% 
-  select(Plot, Trap, Date_collected, Species, Value) %>% 
-  # Traps are 0.5 m2; convert to 1 m2
-  mutate(Value = Value * 2) %>% 
-  # Compute sum of leaf biomass for each trap and species 
-  group_by(Plot, Species, Trap) %>% 
-  summarise(annual_litter_mass = round(sum(Value, na.rm = TRUE), 2)) %>%
-  # Add species codes
-  mutate(Species_code = species_litter_map[Species])
+# filter for exactly one year of litter data
+mutate(Date_collected = mdy(Date_collected)) %>% 
+filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
+# restructure data, using only leaf litter
+gather(Species, Value, starts_with("M_leaf")) %>% 
+select(Plot, Trap, Date_collected, Species, Value) %>% 
+# Traps are 0.5 m2; convert to 1 m2
+mutate(Value = Value * 2) %>% 
+# Compute sum of leaf biomass for each trap and species 
+group_by(Plot, Species, Trap) %>% 
+summarise(annual_litter_mass = round(sum(Value, na.rm = TRUE), 2)) %>%
+# Add species codes
+mutate(Species_code = species_litter_map[Species])
 
 # bar graph 
 avg_litter_plot <- avg_litter %>% 
-  ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
-  geom_col() +
-  facet_wrap(~Plot) +
-  labs(title = "Leaf litterfal by plot and trap", y = "Leaf litterfall (g/m2)")
+ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
+geom_col() +
+facet_wrap(~Plot) +
+labs(title = "Leaf litterfal by plot and trap", y = "Leaf litterfall (g/m2)")
 print(avg_litter_plot)
 
 # join with SLA data 
 
 sla_for_lai <- sla %>% 
-  group_by(Plot, Species_code) %>% 
-  summarise(avg_sla = mean(specific_leaf_area))
+group_by(Plot, Species_code) %>% 
+summarise(avg_sla = mean(specific_leaf_area))
 
 # At this point, we have SLA by species, but the litter data is not as resolved; there's an
 # "Other" category we need to have an SLA for. To do this, compute a weighted mean SLA based
 # on the occurrence (squared diameter) of secondary species not broken out in the litter data:
 # sweetgum, black gum, red maple, ...?
 inventory %>% 
-  filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
-  group_by(Plot, Species_code) %>% 
-  summarise(weight = sum(DBH^2)) ->
-  plot_weights
+filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
+group_by(Plot, Species_code) %>% 
+summarise(weight = sum(DBH^2)) ->
+plot_weights
 
 sla_for_lai <- sla_for_lai %>% 
-  left_join(plot_weights, by = c("Plot", "Species_code")) %>% 
-  filter(!is.na(weight)) %>% 
-  group_by(Plot) %>% 
-  summarise(Species_code = "OTHER",
-            avg_sla = weighted.mean(avg_sla, w = weight)) %>% 
-  # Now bind the SLA means with our new SLA_other data
-  bind_rows(sla_for_lai) 
+left_join(plot_weights, by = c("Plot", "Species_code")) %>% 
+filter(!is.na(weight)) %>% 
+group_by(Plot) %>% 
+summarise(Species_code = "OTHER",
+avg_sla = weighted.mean(avg_sla, w = weight)) %>% 
+# Now bind the SLA means with our new SLA_other data
+bind_rows(sla_for_lai) 
 
 # We have litter data, but no SLA samples, from HSHE/HSME/HSLE
 # For these we will use control and/or shore
 # Make a table that tells us what plot's SLA to use for each plot
 sla_map <- tibble(Plot = unique(avg_litter$Plot),
-                  Use_SLA_from_plot = Plot)
+Use_SLA_from_plot = Plot)
 sla_map$Use_SLA_from_plot[sla_map$Plot %in% c("HSHE", "HSME")] <- "Control"
 sla_map$Use_SLA_from_plot[sla_map$Plot == "HSLE"] <- "Shore"
 
 avg_litter %>% 
-  left_join(sla_map, by = "Plot") %>% 
-  left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) ->
-  sla_litter_joined
+left_join(sla_map, by = "Plot") %>% 
+left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) ->
+sla_litter_joined
 
 if(nrow(avg_litter) != nrow(sla_litter_joined)) {
-  stop("These joins should not have added any rows, but they did!")
+stop("These joins should not have added any rows, but they did!")
 }
 
 lai <- sla_litter_joined %>% 
-  # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
-  mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
-  group_by(Plot, Trap) %>% 
-  # In 467, we are removing NAs from lack of certain species in some plots, in the future we want to
-  # use the average values to fill these in
-  # Maybe we do this above, in 454-457, just by using overall mean values instead of a map
-  summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2)) %>% 
-  summarise(lai_plot = round(mean(lai_trap), 2), 
-            lai_plot_sd = round(sd(lai_trap), 2)) %>% 
-  arrange(Plot) %>% 
-  print()
+# cm2/g * g/m2 = LAI; convert to m2/g for reporting 
+mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
+group_by(Plot, Trap) %>% 
+# In 467, we are removing NAs from lack of certain species in some plots, in the future we want to
+# use the average values to fill these in
+# Maybe we do this above, in 454-457, just by using overall mean values instead of a map
+summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+summarise(lai_plot = round(mean(lai_trap), 2), 
+lai_plot_sd = round(sd(lai_trap), 2)) %>% 
+arrange(Plot) %>% 
+print()
 
 ```
