@@ -50,7 +50,7 @@ map <- ggmap(sites_map) +
             aes(x = Longitude, y = Latitude, label = Plot), 
             size = 3, vjust = 2) +
   labs(x = "Longitude", y = "Latitude") +
-  scale_x_continuous(labels = scales::number_format(accuracy = 0.01), expand = c(0,0))
+  scale_x_continuous(label  s = scales::number_format(accuracy = 0.01), expand = c(0,0))
 # +
   # annotate(geom = "text", x = -76.565, y = 38.88, label = "Smithsonian Environmental\nResearch Center", size = 3)
 print(map)
@@ -619,7 +619,29 @@ annual_litter <- litter_data_raw %>%
 avg_litter_plot <- annual_litter %>% 
   ggplot(aes(lubridate::yday(Date_collected), annual_litter, color = Plot)) +
   geom_line() +
-  labs(title = "Annual Leaf Litterfall", x = "Day of year", y = "Leaf litterfall (g/m2)")
+ # scale_color_manual(values = pal) +
+  labs(x = "Day of year", y = "Leaf litterfall (g/m2)")
+      # title = "Annual Leaf Litterfall" can be used for labs() above 
 print(avg_litter_plot)
 
+lai_plot <- sla_litter_joined %>% 
+# cm2/g * g/m2 = LAI; convert to m2/g for reporting 
+mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
+group_by(Plot, Species_code) %>% 
+summarise(lai_plot = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+ggplot(aes(Plot, lai_plot, fill = Species_code)) +
+geom_col() +
+scale_fill_manual(values = pal) +
+theme(axis.text.x = element_text(angle = 90)) +
+labs(title = "LAI at Sampling Plots", x = "Plot", y = "LAI")
+print(lai_plot)
+
+# inset plot
+litter_lai_plot  <-
+  ggdraw() +
+  draw_plot(avg_litter_plot) +
+  draw_plot(lai_plot, x = 0.07, y = .4, width = .5, height = .5)
+print(litter_lai_plot)
+
+ggsave("poster_figures/litter_lai_plot.png")
 ```
