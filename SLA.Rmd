@@ -638,16 +638,16 @@ annual_litter <- litter_data_raw %>%
 avg_litter_plot <- annual_litter %>% 
   ggplot(aes(lubridate::yday(Date_collected), mean_litter, color = Plot)) +
   geom_line(size = 1.25) +
-  scale_color_manual(
-      values = c("HSHE" = "#A8CDEC", 
-                 "HSLE" = "#F6955E", 
+  scale_color_manual(breaks = c("LSLE","LSME","LSHE","MSLE","MSME","MSHE", "HSLE","HSME","HSHE"), 
+                     values = c("LSLE" = "#969B4B", 
+                 "LSME" = "#B4B979", 
+                 "LSHE" = "#A89F8E", 
+                 "MSLE" = "#7887A4", 
+                 "MSME" = "#A8CDEC", 
+                 "MSHE" = "#9B6981", 
+                 "HSLE" = "#9E3B05", 
                  "HSME" = "#682C37", 
-                 "LSHE" = "#9B6981", 
-                 "LSLE" = "#7887A4", 
-                 "LSME" = "#A89F8E", 
-                 "MSHE" = "#9E3B05", 
-                 "MSLE" = "#B4B979", 
-                 "MSME" = "#969B4B")) +
+                 "HSHE" = "#F6955E")) +
   theme_classic() +
   labs(x = "Day of year", y = "Leaf litterfall (g/m2)")
       # title = "Annual Leaf Litterfall" can be used for labs() above 
