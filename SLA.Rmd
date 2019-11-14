@@ -623,13 +623,20 @@ annual_litter <- litter_data_raw %>%
   select(Plot, Trap, Date_collected, Species, Value) %>% 
   # Traps are 0.5 m2; convert to 1 m2
   mutate(Value = Value * 2) %>% 
-  # add all litter types together for each day of collection and each plot
-  group_by(Date_collected, Plot) %>% 
-  mutate(annual_litter = mean(Value))
+  # add all species together for each day of collection and plot and trap
+  group_by(Date_collected, Plot, Trap) %>% 
+  summarise(daily_litter = sum(Value)) %>% 
+# compute cumulative litter mass for the year for each plot and trap
+  arrange(lubridate::yday(Date_collected)) %>% 
+  group_by(Plot, Trap) %>% 
+  mutate(cum_litter = cumsum(daily_litter)) %>%
+  # compute the mean and s.d. across all traps within a plot, for each day
+  group_by(Plot, Date_collected) %>% 
+  summarise(mean_litter = mean(cum_litter), sd_mean_litter = sd(cum_litter))
 
 # Line graph
 avg_litter_plot <- annual_litter %>% 
-  ggplot(aes(lubridate::yday(Date_collected), annual_litter, color = Plot)) +
+  ggplot(aes(lubridate::yday(Date_collected), mean_litter, color = Plot)) +
   geom_line(size = 1.25) +
   scale_color_manual(
       values = c("HSHE" = "#A8CDEC", 
@@ -649,8 +656,9 @@ print(avg_litter_plot)
 lai_plot <- sla_litter_joined %>% 
 # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
 mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
+# Compute mean plot LAI by plot and species across traps
 group_by(Plot, Species_code) %>% 
-summarise(lai_plot = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+summarise(lai_plot = round(mean(LAI, na.rm = TRUE), 2)) %>% 
 ggplot(aes(Plot, lai_plot, fill = Species_code, color(value = pal))) +
 geom_col() +
 theme(axis.text.x = element_text(angle = 90), 
@@ -664,7 +672,7 @@ print(lai_plot)
 litter_lai_plot  <-
   ggdraw() +
   draw_plot(avg_litter_plot) +
-  draw_plot(lai_plot, x = 0.07, y = .45, width = .5, height = .5)
+  draw_plot(lai_plot, x = 0.1, y = .45, width = .5, height = .5)
 print(litter_lai_plot)
 
 ggsave("poster_figures/litter_lai_plot.png")
