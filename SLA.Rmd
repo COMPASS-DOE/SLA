@@ -50,7 +50,7 @@ map <- ggmap(sites_map) +
             aes(x = Longitude, y = Latitude, label = Plot), 
             size = 3, vjust = 2) +
   labs(x = "Longitude", y = "Latitude") +
-  scale_x_continuous(label  s = scales::number_format(accuracy = 0.01), expand = c(0,0))
+  scale_x_continuous(labels = scales::number_format(accuracy = 0.01), expand = c(0,0))
 # +
   # annotate(geom = "text", x = -76.565, y = 38.88, label = "Smithsonian Environmental\nResearch Center", size = 3)
 print(map)
