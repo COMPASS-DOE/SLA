@@ -21,6 +21,9 @@ theme_set(theme_bw())
 library(ggmap)
 
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
+
+# bootstrap options for kable
+bo <- c("striped", "hover", "condensed", "responsive", full_width = FALSE)
 ```
 
 ## Motivation
@@ -182,7 +185,7 @@ sla_by_species %>%
   kable(digits = 1, format = "html", 
         col.names = c("Species", "N", "SLA", "s.d."), 
         caption = "Table 1: Specific leaf area by species") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 
 # Table 2: SLA by species and plot
 sla %>% 
@@ -193,7 +196,7 @@ sla %>%
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
         caption = "Table 2: Specific leaf area by plot") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 
 # Table 3: SLA by elevation
 sla %>% 
@@ -204,7 +207,7 @@ sla %>%
   kable(digits = 1, format = "html", 
         col.names = c("Elevation", "N", "SLA", "s.d."),
         caption = "Table 3: Specific leaf area by elevation") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 
 # Table 4: SLA canopy position
 sla %>%
@@ -215,7 +218,7 @@ sla %>%
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Canopy position", "N", "SLA", "s.d."), 
         caption = "Table 4: Specific leaf area by canopy position") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 
 # Table 5: SLA along salinity gradient
 sla %>%
@@ -227,7 +230,7 @@ sla %>%
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Salinity exposure", "N", "SLA", "s.d."),
         caption = "Table 5: Specific leaf area along salinity gradient") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 
 # Table 6: SLA along salinity gradient
 sla %>%
@@ -239,7 +242,7 @@ sla %>%
   spread(Salinity, mean_SLA, fill = "") %>% 
   kable(digits = 1, format = "html",
         caption = "Table 6: Specific leaf area (cm2/g) along salinity gradient") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 ```
 
 
@@ -345,7 +348,7 @@ for(sp in unique(sla$Species)) {
 }
 bind_rows(ks_results, .id = "Species") %>% 
   kable(digits = 3, format = "html") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+  kable_styling(bootstrap_options = bo)
 
 sla %>% 
   select(Species_common, Species, SLA = specific_leaf_area) %>% 
@@ -448,7 +451,7 @@ avg_litter_plot <- avg_litter %>%
   ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
   facet_wrap(~Plot) +
-  labs(title = "Leaf litterfal by plot and trap", y = "Leaf litterfall (g/m2)")
+  ylab("Leaf litterfall (g/m2)")
 print(avg_litter_plot)
 
 # join with SLA data 
