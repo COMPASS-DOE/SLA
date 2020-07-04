@@ -172,84 +172,85 @@ sla %>%
 ### Summary tables
 
 ```{r summary-tables}
-# SLA
-# Table 1: Specific Leaf Area by Species
+# Table 1: SLA by species
 sla %>% 
-  group_by(Species_common) %>% 
+  group_by(Species) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) ->
-  n_by_species
+  sla_by_species
 
-n_by_species %>% 
+sla_by_species %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "n", "Average SLA cm2/g", "SD"), 
-               caption = "Table 1: Specific Leaf Area by Species") %>% 
+               col.names = c("Species", "N", "SLA (cm2/g)", "s.d."), 
+               caption = "Table 1: Specific leaf area by species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
-# Table 2: Specific Leaf Area by Species and Plot
+# Table 2: SLA by species and plot
 sla %>% 
-  group_by(Species_common, Plot) %>% 
+  group_by(Species, Plot) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "Plot", "n", "Average SLA cm2/g", "SD"), 
-               caption = "Table 2: Specific Leaf Area by Species") %>% 
+               col.names = c("Species", "Plot", "N", "SLA (cm2/g)", "s.d."), 
+               caption = "Table 2: Specific leaf area by plot") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
-# Elevation Gradient
-# Table 3: SLA Elevation Gradient
+# Table 3: SLA by elevation
 sla %>% 
   group_by(Elevation) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Elevation", "n", "Average SLA cm2/g", "SD"),
-               caption = "Table 3: SLA Elevation Gradient") %>% 
+               col.names = c("Elevation", "N", "SLA (cm2/g)", "s.d."),
+               caption = "Table 3: Specific leaf area by elevation") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
-# Canopy Position
-# Table 4: SLA Canopy Position
+# Table 4: SLA canopy position
 sla %>%
-  group_by(Species_common, Position) %>% 
+  group_by(Species, Position) %>% 
   summarise(n = n(),
             mean_SLA = mean(specific_leaf_area),
             sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "Canopy Position", "n", "Average SLA cm2/g", "SD"), 
-               caption = "Table 4: SLA Canopy Position") %>% 
+               col.names = c("Species", "Canopy position", "N", "SLA (cm2/g)", "s.d."), 
+               caption = "Table 4: Specific leaf area by canopy position") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
-# Salinity
-# Table 5: SLA Along Salinity Gradient
-sla_shoreline %>%
-  group_by(Species_common, Salinity) %>% 
+# Table 5: SLA along salinity gradient
+sla %>%
+  filter(!is.na(Salinity)) %>% 
+  group_by(Species, Salinity) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
   knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "Salinity Exposure", "n", "Average SLA cm2/g", "SD"),
-               caption = "Table 5: SLA Along Salinity Gradient") %>% 
+               col.names = c("Species", "Salinity exposure", "N", "SLA (cm2/g)", "s.d."),
+               caption = "Table 5: Specific leaf area along salinity gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
-sla_shoreline %>%
-  group_by(Species_common, Salinity) %>% 
-  summarise(mean_SLA = mean(specific_leaf_area)) %>% spread(Salinity, mean_SLA) %>% 
-  knitr::kable(digits = 1, format = "html",
-               col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
-               caption = "Table 6: Average SLA (cm2/g) along Salinity Gradient for each Species") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
-
-sla_shoreline %>%
-  group_by(Species_common, Salinity) %>% 
-  summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 2), "+/-",
-                             round(sd(specific_leaf_area), digits = 2))) %>% 
+# Table 6: SLA along salinity gradient
+sla %>%
+  filter(!is.na(Salinity)) %>% 
+  group_by(Species, Salinity) %>% 
+  summarise(mean_SLA = mean(specific_leaf_area)) %>% 
   spread(Salinity, mean_SLA) %>% 
   knitr::kable(digits = 1, format = "html",
-               col.names = c("Species", "High Salinity", "Low Salinity", "Medium Salinity"),
-               caption = "Table 7: Average SLA (cm2/g) along Salinity Gradient") %>% 
+               caption = "Table 6: Specific leaf area along salinity gradient by species") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
+
+# Table 7: SLA along salinity gradient
+sla %>%
+  filter(!is.na(Salinity)) %>% 
+  group_by(Species, Salinity) %>% 
+  summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 1), "±",
+                             round(sd(specific_leaf_area), digits = 1),
+                             paste0("(", n(), ")"))) %>% 
+  spread(Salinity, mean_SLA) %>% 
+  knitr::kable(digits = 1, format = "html",
+               caption = "Table 7: Specific leaf area (cm2/g) along salinity gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 ```
 
@@ -293,7 +294,7 @@ sla_shore_poster <- sla_shoreline %>%
 
 # Figure 1
 fig1 <- sla_poster %>% 
-  left_join(n_by_species, by = "Species_common") %>% 
+  left_join(sla_by_species, by = "Species_common") %>% 
   mutate(xlabel = paste(Species_common, n, sep = "\nN = ")) %>% 
   ggplot(aes(xlabel, specific_leaf_area)) +
   labs(title = "", x = "Species", y = expression(SLA~(cm^2~g^-1))) + # "SLA (cm2/g)") +
