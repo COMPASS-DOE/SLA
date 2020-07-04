@@ -1,7 +1,7 @@
 ---
 title: "Specific leaf area in a coastal temperate deciduous forest: species and salinity effects"
 author: "Lillie Haddock"
-date: "8/13/2019"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -266,7 +266,7 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
 
 ``` {r figures, echo=FALSE}
 sla %>% 
-  bind_rows(tibble(Species = "Carya glabra", specific_leaf_area = NA_real_, Position = "High/Sun", Elevation = "Shoreline")) %>% 
+#  bind_rows(tibble(Species = "Carya glabra", specific_leaf_area = NA_real_, Position = "High/Sun", Elevation = "Shoreline")) %>% 
   mutate(Species = gsub(" ", "\n", Species)) ->
   sla_figs
 
@@ -377,7 +377,7 @@ tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired 
 print(tt_position)
 ```
 
-## Statistics: position differences
+## Statistics: salinity differences
 
 ```{r stats-salinity}
 # Does salinity affect SLA?
