@@ -19,6 +19,8 @@ library(lubridate)
 library(ggplot2)
 theme_set(theme_bw())
 library(ggmap)
+
+ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 ```
 
 ## Motivation
@@ -266,7 +268,7 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
 
 ``` {r figures, echo=FALSE}
 sla %>% 
-#  bind_rows(tibble(Species = "Carya glabra", specific_leaf_area = NA_real_, Position = "High/Sun", Elevation = "Shoreline")) %>% 
+  #  bind_rows(tibble(Species = "Carya glabra", specific_leaf_area = NA_real_, Position = "High/Sun", Elevation = "Shoreline")) %>% 
   mutate(Species = gsub(" ", "\n", Species)) ->
   sla_figs
 
@@ -314,19 +316,36 @@ ggsave("figures/figure3_sla-vs-dbh.png")
 ## TRY comparison
 
 ```{r try-comparison}
+# Trait 3116: Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): petiole included
+# Species: 859, 10831, 23898, 33704, 33707, 38411, 45315
+# Downloaded 2020-07-04
+trydata_raw <- readLines("try_data/10896.txt")
 # There is an invalid string for locale in the download file that screwing things up
 # Workaround:
-trydata_raw <- readLines("try_data/7603.txt")
-# 3116: Leaf area per leaf dry mass (specific leaf area, SLA or 1/LMA): petiole included
 trydata <- suppressWarnings(c(trydata_raw[1], trydata_raw[grep("3116", trydata_raw)]))
 textConnection(trydata) %>% 
   read.table(sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
   as_tibble() %>% 
   select(Species = SpeciesName, OrigValueStr, OrigUnitStr) %>% 
-  mutate(SLA = as.numeric(OrigValueStr),
+  mutate(SLA = suppressWarnings(as.numeric(OrigValueStr)),
          Source = "TRY") %>% 
   filter(!is.na(SLA)) ->
   trydata
+
+# Test for distribution differences
+ks_results <- list()
+for(sp in unique(sla$Species)) {
+  x <- filter(sla, Species == sp)$specific_leaf_area
+  y <- filter(trydata, Species == sp)$SLA
+  if(length(x) > 5 && length(y) > 5) {
+    ks <- ks.test(x, y, alternative = "two.sided", exact = NULL)
+    ks_results[[sp]] <- tibble(N = length(x), N_try = length(y),
+                               D = ks$statistic, p.value = ks$p.value)
+  }
+}
+bind_rows(ks_results, .id = "Species") %>% 
+  kable(digits = 3, format = "html") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 sla %>% 
   select(Species_common, Species, SLA = specific_leaf_area) %>% 
@@ -338,8 +357,7 @@ sla %>%
 fig_try <- ggplot(combined_data, aes(x = SLA, fill = Source)) + 
   geom_density(alpha = 0.5) + 
   facet_wrap(~Species) +
-  xlab("SLA (cm2/g)") +
-  ggtitle("TRY comparison")
+  xlab(expression(SLA~(cm^2~g^-1)))
 print(fig_try)
 ggsave("figures/figure_try.png")
 ```
