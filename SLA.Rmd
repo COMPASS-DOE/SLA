@@ -16,13 +16,9 @@ library(readr)
 library(knitr)
 library(kableExtra)
 library(lubridate)
-library(ggrepel)
 library(ggplot2)
 theme_set(theme_bw())
 library(ggmap)
-library(gganimate)
-library(cowplot)
-library(devtools)
 ```
 
 ## Motivation
@@ -181,9 +177,9 @@ sla %>%
   sla_by_species
 
 sla_by_species %>% 
-  knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "N", "SLA (cm2/g)", "s.d."), 
-               caption = "Table 1: Specific leaf area by species") %>% 
+  kable(digits = 1, format = "html", 
+        col.names = c("Species", "N", "SLA (cm2/g)", "s.d."), 
+        caption = "Table 1: Specific leaf area by species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Table 2: SLA by species and plot
@@ -192,9 +188,9 @@ sla %>%
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
-  knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "Plot", "N", "SLA (cm2/g)", "s.d."), 
-               caption = "Table 2: Specific leaf area by plot") %>% 
+  kable(digits = 1, format = "html", 
+        col.names = c("Species", "Plot", "N", "SLA (cm2/g)", "s.d."), 
+        caption = "Table 2: Specific leaf area by plot") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Table 3: SLA by elevation
@@ -203,9 +199,9 @@ sla %>%
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
-  knitr::kable(digits = 1, format = "html", 
-               col.names = c("Elevation", "N", "SLA (cm2/g)", "s.d."),
-               caption = "Table 3: Specific leaf area by elevation") %>% 
+  kable(digits = 1, format = "html", 
+        col.names = c("Elevation", "N", "SLA (cm2/g)", "s.d."),
+        caption = "Table 3: Specific leaf area by elevation") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Table 4: SLA canopy position
@@ -214,9 +210,9 @@ sla %>%
   summarise(n = n(),
             mean_SLA = mean(specific_leaf_area),
             sd_SLA = sd(specific_leaf_area)) %>% 
-  knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "Canopy position", "N", "SLA (cm2/g)", "s.d."), 
-               caption = "Table 4: Specific leaf area by canopy position") %>% 
+  kable(digits = 1, format = "html", 
+        col.names = c("Species", "Canopy position", "N", "SLA (cm2/g)", "s.d."), 
+        caption = "Table 4: Specific leaf area by canopy position") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Table 5: SLA along salinity gradient
@@ -226,9 +222,9 @@ sla %>%
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
-  knitr::kable(digits = 1, format = "html", 
-               col.names = c("Species", "Salinity exposure", "N", "SLA (cm2/g)", "s.d."),
-               caption = "Table 5: Specific leaf area along salinity gradient") %>% 
+  kable(digits = 1, format = "html", 
+        col.names = c("Species", "Salinity exposure", "N", "SLA (cm2/g)", "s.d."),
+        caption = "Table 5: Specific leaf area along salinity gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Table 6: SLA along salinity gradient
@@ -237,8 +233,8 @@ sla %>%
   group_by(Species, Salinity) %>% 
   summarise(mean_SLA = mean(specific_leaf_area)) %>% 
   spread(Salinity, mean_SLA) %>% 
-  knitr::kable(digits = 1, format = "html",
-               caption = "Table 6: Specific leaf area along salinity gradient by species") %>% 
+  kable(digits = 1, format = "html",
+        caption = "Table 6: Specific leaf area along salinity gradient by species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
 # Table 7: SLA along salinity gradient
@@ -249,8 +245,8 @@ sla %>%
                              round(sd(specific_leaf_area), digits = 1),
                              paste0("(", n(), ")"))) %>% 
   spread(Salinity, mean_SLA) %>% 
-  knitr::kable(digits = 1, format = "html",
-               caption = "Table 7: Specific leaf area (cm2/g) along salinity gradient") %>% 
+  kable(digits = 1, format = "html",
+        caption = "Table 7: Specific leaf area (cm2/g) along salinity gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 ```
 
@@ -342,26 +338,38 @@ sla %>%
   filter(SLA < 600) ->
   combined_data
 
-ggplot(combined_data, aes(x = SLA, fill = Source)) + 
+fig_try <- ggplot(combined_data, aes(x = SLA, fill = Source)) + 
   geom_density(alpha = 0.5) + 
   facet_wrap(~Species) +
   xlab("SLA (cm2/g)") +
   ggtitle("TRY comparison")
+print(fig_try)
+ggsave("figures/figure_try.png")
 ```
 
-## Statistics 
+## Statistics: species differences
 
-```{r stats}
+```{r stats-species}
 # Does SLA differ between species? An overall test
-m_species <- lm(specific_leaf_area ~ Species_common, data = sla)
+m_species <- lm(specific_leaf_area ~ Species, data = sla)
 TukeyHSD(aov(m_species))
+```
 
+## Statistics: elevation differences
+
+```{r stats-elevation}
 # Does SLA between shoreline and upland AFTER accounting for species?
 m_elevation <- lm(specific_leaf_area ~ Species * Elevation, data = sla)
 print(car::Anova(m_elevation))
+```
 
-# Does SLA vary between high and low canopy position? Here we can use a PAIRED t-test
+## Statistics: position differences
+
+```{r stats-position}
+# Does SLA vary between high and low canopy position?
+# Here we can use a PAIRED t-test because samples taken from same trees
 sla %>% 
+  # Some trees were sampled more than once. Just look at earlier samples for simplicity
   filter(mdy(Date) < mdy("8/1/2019")) %>% 
   select(Plot, Species_common, DBH, Tag, Position, specific_leaf_area) %>% 
   spread(Position, specific_leaf_area) -> 
@@ -369,26 +377,20 @@ sla %>%
 
 tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
 print(tt_position)
-
-
-# some statistics will happen here. But what??? Tune in to find out
-# sla %>% 
-#   mutate(EarlyLate = if_else(mdy(Date) < mdy("8/1/2019"), "Early", "Late")) %>% 
-#   filter(Position == "Low/Shade", Plot %in% c("Shore", "HSLE")) %>% 
-#   select(Plot, Species, Tag, DBH, EarlyLate, specific_leaf_area) %>% 
-#   distinct(Plot, Species, Tag, DBH, EarlyLate, .keep_all = TRUE) %>% 
-#   spread(EarlyLate, specific_leaf_area)
-
-# We want to end up with a data frame with an "Early" and "Late" column of SLA values for
-# each individual sampled. Right now the code above is producing a *very* small number
-# of trees. Why? 
-# Step 1: let's produce a list of trees sampled both early and late
-# Step 2: why are we getting duplication?
-# Step 3: group_by(Species) %>% t.test(Early, Late, paired = TRUE)
-
 ```
 
+## Statistics: position differences
+
+```{r stats-salinity}
+# Does salinity affect SLA?
+m_salinity <- lm(specific_leaf_area ~ Species * Salinity, data = sla)
+print(car::Anova(m_salinity))
+```
+
+
+
 ## Leaf Area
+
 ```{r Leaf Area and SLA Analysis}
 # Read in litter data
 litter_1 <- read.csv("../SLA/litter/litterweight_20181012_20181015.csv", stringsAsFactors = FALSE)
