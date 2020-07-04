@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 
 # Load necessary packages
 library(car)
@@ -29,7 +29,7 @@ We investigate SLA differences between plots of varying elevation and salinity e
 
 Map of SERC with plots labeled:
 
-``` {r serc-map}
+``` {r serc-map, message=FALSE}
 sites <- read.csv(file = "Design/sites.csv")
 sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
 sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
@@ -53,9 +53,9 @@ ggsave("figures/map.png")
 SLA is the ratio between a leaf's one-sided fresh leaf area and its total dry mass. 
 
 ```{r read-sla}
-## ----- Read in the SLA csv -----
+# Read in main data file and compute SLA
 read_csv("sla_data.csv", col_types = "ccccdcdddc") %>% 
-  mutate(specific_leaf_area = round(Leaf_Area_cm2 / Leaf_Mass_g, 3)) ->
+  mutate(specific_leaf_area = Leaf_Area_cm2 / Leaf_Mass_g) ->
   sla_raw
 ```
 
@@ -129,9 +129,9 @@ if(any(is.na(sla_joined$DBH))) {
   paste("Tag:", sla_joined$Tag[which(is.na(sla_joined$DBH))])
 }   
 
-# NEW: Want ONLY ACRU, FAGR, LIST, NYSY, QUAL, LITU species!
+# Filter for ACRU, FAGR, LIST, NYSY, QUAL, LITU; others (CA?? and COFL and <= 2)
 sla_joined_simple <- sla_joined %>% 
-  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY", "QUAL", "LITU"))
+  filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY", "QUAL", "LITU", "CAGL"))
 
 # At this point there should be NO data with an NA for Plot or DBH or Species_code
 # Warn if this occurs
@@ -178,7 +178,7 @@ sla %>%
 
 sla_by_species %>% 
   kable(digits = 1, format = "html", 
-        col.names = c("Species", "N", "SLA (cm2/g)", "s.d."), 
+        col.names = c("Species", "N", "SLA", "s.d."), 
         caption = "Table 1: Specific leaf area by species") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
@@ -189,7 +189,7 @@ sla %>%
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
   kable(digits = 1, format = "html", 
-        col.names = c("Species", "Plot", "N", "SLA (cm2/g)", "s.d."), 
+        col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
         caption = "Table 2: Specific leaf area by plot") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
@@ -200,7 +200,7 @@ sla %>%
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
   kable(digits = 1, format = "html", 
-        col.names = c("Elevation", "N", "SLA (cm2/g)", "s.d."),
+        col.names = c("Elevation", "N", "SLA", "s.d."),
         caption = "Table 3: Specific leaf area by elevation") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
@@ -211,7 +211,7 @@ sla %>%
             mean_SLA = mean(specific_leaf_area),
             sd_SLA = sd(specific_leaf_area)) %>% 
   kable(digits = 1, format = "html", 
-        col.names = c("Species", "Canopy position", "N", "SLA (cm2/g)", "s.d."), 
+        col.names = c("Species", "Canopy position", "N", "SLA", "s.d."), 
         caption = "Table 4: Specific leaf area by canopy position") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
@@ -223,7 +223,7 @@ sla %>%
             mean_SLA = mean(specific_leaf_area), 
             sd_SLA = sd(specific_leaf_area)) %>% 
   kable(digits = 1, format = "html", 
-        col.names = c("Species", "Salinity exposure", "N", "SLA (cm2/g)", "s.d."),
+        col.names = c("Species", "Salinity exposure", "N", "SLA", "s.d."),
         caption = "Table 5: Specific leaf area along salinity gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 
@@ -231,22 +231,12 @@ sla %>%
 sla %>%
   filter(!is.na(Salinity)) %>% 
   group_by(Species, Salinity) %>% 
-  summarise(mean_SLA = mean(specific_leaf_area)) %>% 
-  spread(Salinity, mean_SLA) %>% 
-  kable(digits = 1, format = "html",
-        caption = "Table 6: Specific leaf area along salinity gradient by species") %>% 
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
-
-# Table 7: SLA along salinity gradient
-sla %>%
-  filter(!is.na(Salinity)) %>% 
-  group_by(Species, Salinity) %>% 
   summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 1), "±",
                              round(sd(specific_leaf_area), digits = 1),
                              paste0("(", n(), ")"))) %>% 
-  spread(Salinity, mean_SLA) %>% 
+  spread(Salinity, mean_SLA, fill = "") %>% 
   kable(digits = 1, format = "html",
-        caption = "Table 7: Specific leaf area (cm2/g) along salinity gradient") %>% 
+        caption = "Table 6: Specific leaf area (cm2/g) along salinity gradient") %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive", full_width = FALSE))
 ```
 
@@ -269,14 +259,16 @@ ggplot(sla, aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
 ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
-  geom_smooth(method = lm) +
-  labs(title = "Number of Leaves vs. Leaf Dry Mass")
+  geom_smooth(method = lm)
 ```
 
-### Basic figures
+### Primary figures
 
 ``` {r figures, echo=FALSE}
-sla_figs <- mutate(sla, Species = gsub(" ", "\n", Species))
+sla %>% 
+  bind_rows(tibble(Species = "Carya glabra", specific_leaf_area = NA_real_, Position = "High/Sun", Elevation = "Shoreline")) %>% 
+  mutate(Species = gsub(" ", "\n", Species)) ->
+  sla_figs
 
 # Figure 1: SLA by species and canopy position
 fig1 <- ggplot(sla_figs, aes(Species, specific_leaf_area)) +
@@ -301,17 +293,22 @@ sla %>%
   filter(term == "DBH") %>% 
   ungroup() %>% 
   transmute(Species,
-            notsignif = p.value >= 0.05) %>% 
-  right_join(sla, by = "Species") %>% 
+            p.value = round(p.value, 3),
+            p_pretty = if_else(p.value < 0.001, "P < 0.001", paste("P =", format(p.value, digits = 3))),
+            notsignif = p.value >= 0.05) ->
+  mod_signif
+
+sla %>% 
+  left_join(mod_signif, by = "Species") %>% 
   ggplot(aes(DBH, specific_leaf_area)) +
   geom_point() + 
   facet_wrap(~Species) +
   geom_smooth(method = "lm", aes(linetype = notsignif), show.legend = FALSE) +
-  labs(y = expression(SLA~(cm^2~g^-1)), 
-       x = "DBH (cm)") ->
+  labs(x = "DBH (cm)", y = expression(SLA~(cm^2~g^-1))) +
+  geom_text(data = mod_signif, x = 60, y = 500, aes(label = p_pretty)) ->
   fig3
 print(fig3)
-ggsave("figures/figure3.png")
+ggsave("figures/figure3_sla-vs-dbh.png")
 ```
 
 ## TRY comparison
@@ -351,7 +348,8 @@ ggsave("figures/figure_try.png")
 
 ```{r stats-species}
 # Does SLA differ between species? An overall test
-m_species <- lm(specific_leaf_area ~ Species, data = sla)
+m_species <- lm(specific_leaf_area ~ Species_code, data = sla)
+print(summary(m_species))
 TukeyHSD(aov(m_species))
 ```
 
@@ -386,8 +384,6 @@ print(tt_position)
 m_salinity <- lm(specific_leaf_area ~ Species * Salinity, data = sla)
 print(car::Anova(m_salinity))
 ```
-
-
 
 ## Leaf Area
 
@@ -492,22 +488,10 @@ lai <- sla_litter_joined %>%
   arrange(Plot) %>% 
   print()
 ```
-Colors used for Line Graph 
 
-# from Arches color palette
-light_blue <- A8CDEC
-orange <- F6955E
-maroon <- 682C37
-plum <- 9B6981
-dark_blue <- 7887A4
-green_gray <- A89F8E
-# new color palette
-dark_orange <- 9E3B05
-light_green <- B4B979
-dark_green <- 969B4B
 
-``` {r litter poster figure}
 
+``` {r litter-figure, eval=FALSE}
 annual_litter <- litter_data_raw %>% 
   # filter for exactly one year of litter data
   mutate(Date_collected = mdy(Date_collected)) %>% 
@@ -553,14 +537,12 @@ lai_plot <- sla_litter_joined %>%
   # Compute mean plot LAI by plot and species across traps
   group_by(Plot, Species_code) %>% 
   summarise(lai_plot = round(mean(LAI, na.rm = TRUE), 2)) %>% 
-  ggplot(aes(Plot, lai_plot, fill = Species_code, color(value = pal))) +
+  ggplot(aes(Plot, lai_plot, fill = Species_code, color = value))) +
   geom_col() +
   theme(axis.text.x = element_text(angle = 90), 
         legend.title = element_text(size = 11), 
         legend.text = element_text(size = 9),
         plot.title = element_text(size = 11)) +
-  
-  scale_fill_manual(values = pal, name = "Species") +
   labs(title = "LAI at Sampling Plots", x = "Plot", y = "LAI") 
 print(lai_plot)
 
@@ -572,4 +554,11 @@ litter_lai_plot  <-
 print(litter_lai_plot)
 
 ggsave("poster_figures/litter_lai_plot.png")
+```
+
+
+The End.
+
+```{r sessionInfo}
+sessionInfo()
 ```
