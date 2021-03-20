@@ -259,13 +259,13 @@ ggplot(sla, aes(x = specific_leaf_area, fill = Position)) +
 ggplot(sla, aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
-  geom_smooth(method = lm) 
+  geom_smooth(method = "lm") 
 
 ## leaves vs mass
 ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
-  geom_smooth(method = lm)
+  geom_smooth(method = "lm")
 ```
 
 ### Primary figures
@@ -408,8 +408,6 @@ print(car::Anova(m_salinity))
 ```
 
 ## Leaf Area
-
-
 
 ```{r neon}
 neon_pertrap <- read_csv("NEON_litterfall/stackedFiles/ltr_pertrap.csv",
