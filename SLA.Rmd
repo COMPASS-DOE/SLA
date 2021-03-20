@@ -40,13 +40,13 @@ sites <- read.csv(file = "Design/sites.csv")
 sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
 sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
 
-map <- ggmap(sites_map) +
-  geom_point(data = sites, mapping = aes(x = Longitude, y = Latitude), color = "black", size = 1) +
+ggmap(sites_map) +
+  geom_point(data = sites, 
+             aes(x = Longitude, y = Latitude), color = "black", size = 1) +
   geom_text(data = sites, 
             aes(x = Longitude, y = Latitude, label = Plot), 
             size = 3, vjust = 2) +
   labs(x = "Longitude", y = "Latitude")
-print(map)
 ggsave("figures/map.png")
 ```
 
@@ -78,7 +78,8 @@ if(any(duplicated(tempest_inventory$Tag))) {
 }
 
 # Read in transplant inventory data
-transplant_inventory <- read_csv("inventory/transplant-inventory.csv", col_types = "-cc-c---d--c") %>% 
+transplant_inventory <- read_csv("inventory/transplant-inventory.csv",
+                                 col_types = "-cc-c---d--c") %>% 
   select(Plot, Tag, Species_code, DBH = DBH_cm_2019, Notes)
 
 # Check that no tag numbers are duplicated
@@ -88,8 +89,9 @@ if(any(duplicated(transplant_inventory$Tag))) {
 }
 
 # Combine storm surge inventory with transplant inventory
-inventory <- bind_rows(transplant_inventory, tempest_inventory) %>% 
-  filter(!is.na(Tag))
+bind_rows(transplant_inventory, tempest_inventory) %>% 
+  filter(!is.na(Tag)) ->
+  inventory
 
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
@@ -179,10 +181,8 @@ sla %>%
   group_by(Species) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area)) ->
-  sla_by_species
-
-sla_by_species %>% 
+            sd_SLA = sd(specific_leaf_area),
+            .groups = "drop") %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Species", "N", "SLA", "s.d."), 
         caption = "Table 1: Specific leaf area by species") %>% 
@@ -193,7 +193,8 @@ sla %>%
   group_by(Species, Plot) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area)) %>% 
+            sd_SLA = sd(specific_leaf_area),
+            .groups = "drop") %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
         caption = "Table 2: Specific leaf area by plot") %>% 
@@ -215,7 +216,8 @@ sla %>%
   group_by(Species, Position) %>% 
   summarise(n = n(),
             mean_SLA = mean(specific_leaf_area),
-            sd_SLA = sd(specific_leaf_area)) %>% 
+            sd_SLA = sd(specific_leaf_area),
+            .groups = "drop") %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Canopy position", "N", "SLA", "s.d."), 
         caption = "Table 4: Specific leaf area by canopy position") %>% 
@@ -227,7 +229,8 @@ sla %>%
   group_by(Species, Salinity) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area)) %>% 
+            sd_SLA = sd(specific_leaf_area),
+            .groups = "drop") %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Salinity exposure", "N", "SLA", "s.d."),
         caption = "Table 5: Specific leaf area along salinity gradient") %>% 
@@ -239,7 +242,8 @@ sla %>%
   group_by(Species, Salinity) %>% 
   summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 1), "±",
                              round(sd(specific_leaf_area), digits = 1),
-                             paste0("(", n(), ")"))) %>% 
+                             paste0("(", n(), ")")),
+            .groups = "drop") %>% 
   spread(Salinity, mean_SLA, fill = "") %>% 
   kable(digits = 1, format = "html",
         caption = "Table 6: Specific leaf area (cm2/g) along salinity gradient") %>% 
@@ -259,13 +263,13 @@ ggplot(sla, aes(x = specific_leaf_area, fill = Position)) +
 ggplot(sla, aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
-  geom_smooth(method = "lm") 
+  geom_smooth(method = "lm", formula = y ~ x) 
 
 ## leaves vs mass
 ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm", formula = y ~ x)
 ```
 
 ### Primary figures
@@ -309,7 +313,8 @@ sla %>%
   ggplot(aes(DBH, specific_leaf_area)) +
   geom_point() + 
   facet_wrap(~Species) +
-  geom_smooth(method = "lm", aes(linetype = notsignif), show.legend = FALSE) +
+  geom_smooth(method = "lm", formula = y ~ x, 
+              aes(linetype = notsignif), show.legend = FALSE) +
   labs(x = "DBH (cm)", y = expression(SLA~(cm^2~g^-1))) +
   geom_text(data = mod_signif, x = 60, y = 500, aes(label = p_pretty)) ->
   fig3
@@ -527,7 +532,8 @@ print(avg_litter_plot)
 
 sla_for_lai <- sla %>% 
   group_by(Plot, Species_code) %>% 
-  summarise(avg_sla = mean(specific_leaf_area))
+  summarise(avg_sla = mean(specific_leaf_area),
+            .groups = "drop")
 
 # At this point, we have SLA by species, but the litter data is not as resolved; there's an
 # "Other" category we need to have an SLA for. To do this, compute a weighted mean SLA based
@@ -536,7 +542,8 @@ sla_for_lai <- sla %>%
 inventory %>% 
   filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
   group_by(Plot, Species_code) %>% 
-  summarise(weight = sum(DBH ^ 2)) ->
+  summarise(weight = sum(DBH ^ 2),
+            .groups = "drop") ->
   plot_weights
 
 sla_for_lai <- sla_for_lai %>% 
@@ -572,7 +579,7 @@ lai <- sla_litter_joined %>%
   # In 467, we are removing NAs from lack of certain species in some plots, in the future we want to
   # use the average values to fill these in
   # Maybe we do this above, in 454-457, just by using overall mean values instead of a map
-  summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2)) %>% 
+  summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2), .groups = "drop_last") %>% 
   summarise(lai_plot = round(mean(lai_trap), 2), 
             lai_plot_sd = round(sd(lai_trap), 2)) %>% 
   arrange(Plot) %>% 
@@ -587,7 +594,8 @@ sla_litter_joined %>%
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   # Compute mean plot LAI by plot and species across traps
   group_by(Plot, Species_code) %>% 
-  summarise(value = round(mean(LAI, na.rm = TRUE), 2)) ->
+  summarise(value = round(mean(LAI, na.rm = TRUE), 2),
+            .groups = "drop") ->
   lai_plot_data
 
 lai_plot <- ggplot(lai_plot_data, aes(Plot, value, fill = Species_code)) +
