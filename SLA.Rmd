@@ -450,8 +450,18 @@ neon_massdata %>%
 # Read in litter data
 list.files("../SLA/litter/", pattern = "*.csv", full.names = TRUE) %>% 
   lapply(read_csv, col_types = "ccccddddddc") %>%
-  bind_rows ->
+  bind_rows %>% 
+  mutate(Date_collected = mdy(Date_collected)) ->
   litter_data_raw
+
+# QC: check for missing data and/or data duplication
+litter_data_raw %>% 
+  group_by(Plot, Date_collected) %>% 
+  summarise(N = n(), .groups = "drop") %>% 
+  pivot_wider(names_from = Plot, values_from = N, values_fill = 0) %>% 
+  arrange(Date_collected) %>% 
+  kable(digits = 1, format = "html") %>%  
+  kable_styling(bootstrap_options = bo)
 
 # This is our mapping from Species (in the litter data) to species code (as in SLA data)
 species_litter_map <- c("M_leaf_beech" = "FAGR",
@@ -461,7 +471,6 @@ species_litter_map <- c("M_leaf_beech" = "FAGR",
 
 litter_data_raw %>% 
   # filter for exactly one year of litter data
-  mutate(Date_collected = mdy(Date_collected)) %>% 
   filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
   select(Plot, Trap, Date_collected, starts_with("M_leaf")) %>% 
   # restructure data, using only leaf litter
