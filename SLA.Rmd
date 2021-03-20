@@ -408,6 +408,39 @@ print(car::Anova(m_salinity))
 
 ## Leaf Area
 
+
+
+```{r neon}
+neon_pertrap <- read_csv("NEON_litterfall/stackedFiles/ltr_pertrap.csv",
+                         col_types = "cccccdcdddcccddDccccdccTc")
+neon_massdata <- read_csv("NEON_litterfall/stackedFiles/ltr_massdata.csv",
+                          col_types = "ccccccTTTcTTcccccdcccTc")
+neon_fielddata <- read_csv("NEON_litterfall/stackedFiles/ltr_fielddata.csv",
+                           col_types = "ccccccDDcdcccccccTc")
+
+neon_fielddata %>% 
+  filter(!grepl("OK", trapCondition, fixed = TRUE)) %>% 
+  select(collectDate, trapID) %>% 
+  mutate(Year = year(collectDate)) ->
+  trap_problems
+
+neon_massdata %>% 
+  select(trapID, collectDate, functionalGroup, dryMass) %>% 
+  filter(functionalGroup == "Leaves") %>% 
+  mutate(Year = year(collectDate)) %>% 
+  # compute annual sums
+  group_by(Year, trapID) %>% 
+  summarise(dryMass = sum(dryMass), .groups = "drop") %>% 
+  # remove traps with problems in a given year
+  anti_join(trap_problems, by = c("Year", "trapID")) %>% 
+  # pull in trap size information
+  left_join(select(neon_pertrap, trapID, trapType, trapSize), by = "trapID") %>% 
+  filter(trapType == "Elevated") %>% 
+  mutate(dryMass_m2 = dryMass / trapSize) ->
+  neon_litter
+
+```
+
 ```{r Leaf Area and SLA Analysis}
 # Read in litter data
 litter_1 <- read.csv("../SLA/litter/litterweight_20181012_20181015.csv", stringsAsFactors = FALSE)
@@ -447,11 +480,17 @@ avg_litter <- litter_data_raw %>%
   mutate(Species_code = species_litter_map[Species])
 
 # bar graph 
+neon_mn <- mean(neon_litter$dryMass_m2)
+neon_sd <- sd(neon_litter$dryMass_m2)
 avg_litter_plot <- avg_litter %>% 
   ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
   facet_wrap(~Plot) +
-  ylab("Leaf litterfall (g/m2)")
+  ylab("Leaf litterfall (g/m2)")  +
+  geom_hline(yintercept = neon_mn, linetype = 2) +
+  geom_hline(yintercept = neon_mn + neon_sd, linetype = 3) +
+  geom_hline(yintercept = neon_mn - neon_sd, linetype = 3)
+  
 print(avg_litter_plot)
 
 # join with SLA data 
@@ -511,7 +550,6 @@ lai <- sla_litter_joined %>%
 ```
 
 
-
 ``` {r litter-figure, eval=FALSE}
 annual_litter <- litter_data_raw %>% 
   # filter for exactly one year of litter data
@@ -552,19 +590,21 @@ avg_litter_plot <- annual_litter %>%
 # title = "Annual Leaf Litterfall" can be used for labs() above 
 print(avg_litter_plot)
 
-lai_plot <- sla_litter_joined %>% 
+sla_litter_joined %>% 
   # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   # Compute mean plot LAI by plot and species across traps
   group_by(Plot, Species_code) %>% 
-  summarise(lai_plot = round(mean(LAI, na.rm = TRUE), 2)) %>% 
-  ggplot(aes(Plot, lai_plot, fill = Species_code, color = value))) +
+  summarise(value = round(mean(LAI, na.rm = TRUE), 2)) ->
+  lai_plot_data
+
+lai_plot <- ggplot(lai_plot_data, aes(Plot, value, fill = Species_code)) +
   geom_col() +
   theme(axis.text.x = element_text(angle = 90), 
         legend.title = element_text(size = 11), 
         legend.text = element_text(size = 9),
         plot.title = element_text(size = 11)) +
-  labs(title = "LAI at Sampling Plots", x = "Plot", y = "LAI") 
+  labs(title = "LAI at Sampling Plots", x = "Plot", y = "LAI")
 print(lai_plot)
 
 # inset plot
