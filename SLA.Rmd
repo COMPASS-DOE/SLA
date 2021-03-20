@@ -451,6 +451,8 @@ neon_massdata %>%
 list.files("../SLA/litter/", pattern = "*.csv", full.names = TRUE) %>% 
   lapply(read_csv, col_types = "ccccddddddc") %>%
   bind_rows %>% 
+  # there are duplicate rows!!!!! wtf
+  distinct() %>% 
   mutate(Date_collected = mdy(Date_collected)) ->
   litter_data_raw
 
