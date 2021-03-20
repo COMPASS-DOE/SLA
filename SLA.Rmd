@@ -19,6 +19,7 @@ library(lubridate)
 library(ggplot2)
 theme_set(theme_bw())
 library(ggmap)
+library(cowplot)
 
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 
@@ -438,7 +439,6 @@ neon_massdata %>%
   filter(trapType == "Elevated") %>% 
   mutate(dryMass_m2 = dryMass / trapSize) ->
   neon_litter
-
 ```
 
 ```{r Leaf Area and SLA Analysis}
@@ -458,12 +458,6 @@ species_litter_map <- c("M_leaf_beech" = "FAGR",
                         "M_leaf_tulip" = "LITU",
                         "M_leaf_other" = "OTHER")  # temporary
 
-# Test: tiny dataset 
-# litter_data_raw <- tibble(Plot = "HSLE",
-#                          Trap = "A",
-#                          M_leaf_beech = 100,
-#                          Date_collected = c("9/15/2019", "8/15/2019"))
-
 avg_litter <- litter_data_raw %>% 
   # filter for exactly one year of litter data
   mutate(Date_collected = mdy(Date_collected)) %>% 
@@ -480,17 +474,18 @@ avg_litter <- litter_data_raw %>%
   mutate(Species_code = species_litter_map[Species])
 
 # bar graph 
-neon_mn <- mean(neon_litter$dryMass_m2)
+neon_md <- median(neon_litter$dryMass_m2)
 neon_sd <- sd(neon_litter$dryMass_m2)
-avg_litter_plot <- avg_litter %>% 
-  ggplot(aes(Trap, annual_litter_mass, fill = Species_code)) +
+avg_litter_plot <- ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
   facet_wrap(~Plot) +
-  ylab("Leaf litterfall (g/m2)")  +
-  geom_hline(yintercept = neon_mn, linetype = 2) +
-  geom_hline(yintercept = neon_mn + neon_sd, linetype = 3) +
-  geom_hline(yintercept = neon_mn - neon_sd, linetype = 3)
-  
+  ylab("Leaf litterfall (g/m2)") +
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf,
+           ymin = neon_md - neon_sd, ymax = neon_md + neon_sd, alpha = 0.3) +
+  geom_hline(yintercept = neon_md, linetype = 2, alpha = 0.75) +
+  geom_hline(yintercept = neon_md - neon_sd, linetype = 2, alpha = 0.3) +
+  geom_hline(yintercept = neon_md + neon_sd, linetype = 2, alpha = 0.3)
+
 print(avg_litter_plot)
 
 # join with SLA data 
@@ -550,7 +545,7 @@ lai <- sla_litter_joined %>%
 ```
 
 
-``` {r litter-figure, eval=FALSE}
+``` {r litter-figure}
 annual_litter <- litter_data_raw %>% 
   # filter for exactly one year of litter data
   mutate(Date_collected = mdy(Date_collected)) %>% 
@@ -586,8 +581,12 @@ avg_litter_plot <- annual_litter %>%
                                 "HSME" = "#682C37", 
                                 "HSHE" = "#F6955E")) +
   theme_classic() +
-  labs(x = "Day of year", y = "Leaf litterfall (g/m2)")
-# title = "Annual Leaf Litterfall" can be used for labs() above 
+  labs(x = "Day of year", y = "Leaf litterfall (g/m2)") +
+    annotate(geom = "rect", xmin = -Inf, xmax = Inf,
+           ymin = neon_md - neon_sd, ymax = neon_md + neon_sd, alpha = 0.3) +
+  geom_hline(yintercept = neon_md, linetype = 2, alpha = 0.75) +
+  geom_hline(yintercept = neon_md - neon_sd, linetype = 2, alpha = 0.3) +
+  geom_hline(yintercept = neon_md + neon_sd, linetype = 2, alpha = 0.3)
 print(avg_litter_plot)
 
 sla_litter_joined %>% 
@@ -614,7 +613,6 @@ litter_lai_plot  <-
   draw_plot(lai_plot, x = 0.1, y = .45, width = .5, height = .5)
 print(litter_lai_plot)
 
-ggsave("poster_figures/litter_lai_plot.png")
 ```
 
 
