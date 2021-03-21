@@ -5,6 +5,16 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+To do:
+* Inventory data - why duplicate tree tag warnings?
+* SLA elevation differences - use type III
+* SLA salinity differences - type III / investigate
+* Make a species-over-yday plot for litter
+* Run statistics on litter data (elevation, salinity)
+* Run statistics on LAI results
+* Comparison - pull MODIS LAI? Look at other studies as well
+* Start to number 'for real' tables and figures
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 
@@ -385,7 +395,7 @@ TukeyHSD(aov(m_species))
 ```{r stats-elevation}
 # Does SLA between shoreline and upland AFTER accounting for species?
 m_elevation <- lm(specific_leaf_area ~ Species * Elevation, data = sla)
-print(car::Anova(m_elevation))
+print(car::Anova(m_elevation, type = "II"))
 ```
 
 ## Statistics: position differences
@@ -473,7 +483,8 @@ species_litter_map <- c("M_leaf_beech" = "FAGR",
 
 litter_data_raw %>% 
   # filter for exactly one year of litter data
-  filter(Date_collected >= mdy("10/1/2018") & Date_collected < mdy("10/1/2019")) %>% 
+  filter(Date_collected >= mdy("10/1/2018"), 
+         Date_collected < mdy("10/1/2019")) %>% 
   select(Plot, Trap, Date_collected, starts_with("M_leaf")) %>% 
   # restructure data, using only leaf litter
   gather(Species, Value, starts_with("M_leaf")) %>% 
@@ -492,7 +503,7 @@ litter_2019 %>%
 # bar graph 
 neon_md <- median(neon_litter$dryMass_m2)
 neon_sd <- sd(neon_litter$dryMass_m2)
-avg_litter_plot <- ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
+ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
   facet_wrap(~Plot) +
   ylab(expression(Leaf~litterfall~(g~m^-2))) +
@@ -501,8 +512,6 @@ avg_litter_plot <- ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Speci
   geom_hline(yintercept = neon_md, linetype = 2, alpha = 0.75) +
   geom_hline(yintercept = neon_md - neon_sd, linetype = 2, alpha = 0.3) +
   geom_hline(yintercept = neon_md + neon_sd, linetype = 2, alpha = 0.3)
-
-print(avg_litter_plot)
 
 litter_2019 %>% 
   # add all species together for each day of collection and plot and trap
@@ -513,9 +522,12 @@ litter_2019 %>%
   # compute cumulative litter mass for the year for each plot and trap
   arrange(yearday) %>% 
   group_by(Plot, Trap) %>% 
-  mutate(cum_litter = cumsum(Value)) %>%
+  mutate(cum_litter = cumsum(Value)) ->
+  annual_litter_trap
+
+annual_litter_trap %>%
   # compute the mean and s.d. across all traps within a plot, for each day
-  group_by(Plot, Date_collected) %>% 
+  group_by(Plot, yearday) %>% 
   summarise(mean_litter = mean(cum_litter), 
             sd_mean_litter = sd(cum_litter),
             .groups = "drop") ->
@@ -523,7 +535,7 @@ litter_2019 %>%
 
 # Line graph
 avg_litter_plot <- ggplot(annual_litter, 
-                          aes(yday(Date_collected), mean_litter, color = Plot)) +
+                          aes(yearday, mean_litter, color = Plot)) +
   geom_line(na.rm = TRUE) +
   labs(x = "Day of year", 
        y = expression(Leaf~litterfall~(g~m^-2))) +
@@ -546,9 +558,10 @@ sla_for_lai <- sla %>%
   summarise(avg_sla = mean(specific_leaf_area),
             .groups = "drop")
 
-# At this point, we have SLA by species, but the litter data is not as resolved; there's an
-# "Other" category we need to have an SLA for. To do this, compute a weighted mean SLA based
-# on the occurrence (squared diameter) of secondary species not broken out in the litter data:
+# At this point, we have SLA by species, but the litter data is not as resolved; 
+# there's an "Other" category we need to have an SLA for. To do this, we compute
+# a weighted mean SLA based on the occurrence (squared diameter) of secondary 
+# species not broken out in the litter data:
 # sweetgum, black gum, red maple, ...?
 inventory %>% 
   filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
@@ -587,12 +600,12 @@ lai <- sla_litter_joined %>%
   # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
   mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
   group_by(Plot, Trap) %>% 
-  # In 467, we are removing NAs from lack of certain species in some plots, in the future we want to
-  # use the average values to fill these in
+  # In 467, we are removing NAs from lack of certain species in some plots
+  # in the future we want to use the average values to fill these in
   # Maybe we do this above, in 454-457, just by using overall mean values instead of a map
-  summarise(lai_trap = round(sum(LAI, na.rm = TRUE), 2), .groups = "drop_last") %>% 
-  summarise(lai_plot = round(mean(lai_trap), 2), 
-            lai_plot_sd = round(sd(lai_trap), 2)) %>% 
+  summarise(lai_trap = sum(LAI, na.rm = TRUE), .groups = "drop_last") %>% 
+  summarise(lai_plot = mean(lai_trap), 
+            lai_plot_sd = sd(lai_trap)) %>% 
   arrange(Plot) %>% 
   print()
 ```
