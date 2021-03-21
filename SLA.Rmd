@@ -9,7 +9,6 @@ To do:
 * Inventory data - why duplicate tree tag warnings?
 * SLA elevation differences - use type III
 * SLA salinity differences - type III / investigate
-* What's up with LSLE litter? Where is it?
 * Run statistics on litter data (elevation, salinity)
 * Run statistics on LAI results
 * Comparison - pull MODIS LAI? Look at other studies as well
@@ -64,7 +63,7 @@ ggsave("figures/map.png")
 
 ![Figure 1: Collecting samples using a hand pruner](Photos/sampling1.png) ![Figure 2: All the samples after a morning of collecting](Photos/sampling2.png)
 
-## SLA Data
+### SLA Data
 
 SLA is the ratio between a leaf's one-sided fresh leaf area and its total dry mass. 
 
@@ -75,7 +74,7 @@ read_csv("sla_data.csv", col_types = "ccccdcdddc") %>%
   sla_raw
 ```
 
-## Inventory Data
+### Inventory Data
 
 ```{r read-inventory}
 ## Read in the TEMPEST inventory data 
@@ -111,7 +110,7 @@ if(any(duplicated(inventory$Tag))) {
 }
 ```
 
-## Join SLA and inventory data
+### Join SLA and inventory data
 
 ```{r join-sla-inventory, error = FALSE}
 sla_raw %>%
@@ -260,7 +259,6 @@ sla %>%
   kable_styling(bootstrap_options = bo)
 ```
 
-
 ### Quality control plots
 
 ```{r qc-plots}
@@ -282,7 +280,7 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
   geom_smooth(method = "lm", formula = y ~ x)
 ```
 
-### Primary figures
+## Primary figures
 
 ``` {r figures, echo=FALSE}
 sla %>% 
@@ -381,7 +379,9 @@ print(fig_try)
 ggsave("figures/figure_try.png")
 ```
 
-## Statistics: species differences
+## Statistics {.tabset}
+
+### Species differences
 
 ```{r stats-species}
 # Does SLA differ between species? An overall test
@@ -390,7 +390,7 @@ print(summary(m_species))
 TukeyHSD(aov(m_species))
 ```
 
-## Statistics: elevation differences
+### Elevation differences
 
 ```{r stats-elevation}
 # Does SLA between shoreline and upland AFTER accounting for species?
@@ -398,7 +398,7 @@ m_elevation <- lm(specific_leaf_area ~ Species * Elevation, data = sla)
 print(car::Anova(m_elevation, type = "II"))
 ```
 
-## Statistics: position differences
+### Position differences
 
 ```{r stats-position}
 # Does SLA vary between high and low canopy position?
@@ -414,7 +414,7 @@ tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired 
 print(tt_position)
 ```
 
-## Statistics: salinity differences
+### Salinity differences
 
 ```{r stats-salinity}
 # Does salinity affect SLA?
@@ -476,6 +476,9 @@ litter_data_raw %>%
   kable(digits = 1, format = "html") %>%  
   kable_styling(bootstrap_options = bo)
 
+# LSLE C is NA (it's the trap that got destroyed by a tree early on)
+# Do we drop it, or impute it?
+
 # This is our mapping from Species (in the litter data) to species code (as in SLA data)
 species_litter_map <- c("M_leaf_beech" = "FAGR",
                         "M_leaf_oak" = "QUAL",
@@ -520,7 +523,7 @@ ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
 litter_2019 %>% 
   # add all species together for each day of collection and plot and trap
   group_by(yearday, Plot, Species_code) %>% 
-  summarise(Value = mean(Value),
+  summarise(Value = mean(Value, na.rm = TRUE),
             .groups = "drop") %>% 
   # compute cumulative litter mass for the year for each plot and species
   arrange(yearday) %>% 
@@ -536,7 +539,7 @@ litter_2019 %>%
   litter_2019 %>% 
   # add all species together for each day of collection and plot and trap
   group_by(yearday, Plot, Trap) %>% 
-  summarise(Value = sum(Value),
+  summarise(Value = sum(Value, na.rm = TRUE),
             .groups = "drop") %>% 
   # compute cumulative litter mass for the year for each plot and trap
   arrange(yearday) %>% 
@@ -547,8 +550,9 @@ litter_2019 %>%
 annual_litter_trap %>%
   # compute the mean and s.d. across all traps within a plot, for each day
   group_by(Plot, yearday) %>% 
-  summarise(mean_litter = mean(cum_litter), 
-            sd_mean_litter = sd(cum_litter),
+  summarise(mean_litter = mean(cum_litter, na.rm = TRUE), 
+            sd_mean_litter = sd(cum_litter, na.rm = TRUE),
+            n_litter = length(na.omit(cum_litter)),
             .groups = "drop") ->
   annual_litter
 
