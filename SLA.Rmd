@@ -2,7 +2,11 @@
 title: "Specific leaf area in a coastal temperate deciduous forest: species and salinity effects"
 author: "Lillie Haddock"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document:
+    number_sections: true
+    toc: true
+    toc_float: true
 ---
 
 To do:
@@ -36,7 +40,7 @@ ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 bo <- c("striped", "hover", "condensed", "responsive", full_width = FALSE)
 ```
 
-## Motivation
+# Motivation
 
 Specific leaf area (SLA, the ratio of leaf area to leaf dry mass) is an important trait for plant physiological, structural, and modeling analyses. SLA is also a useful measurement to upscale plant production, vegetation community composition, and other processes in Earth System Models, providing current-day benchmarks and improving predictions of future vegetation structure and function in terrestrial ecosystems.
 
@@ -59,11 +63,11 @@ ggmap(sites_map) +
 ggsave("figures/map.png")
 ```
 
-## Methods
+# Methods
 
 ![Figure 1: Collecting samples using a hand pruner](Photos/sampling1.png) ![Figure 2: All the samples after a morning of collecting](Photos/sampling2.png)
 
-### SLA Data
+## SLA Data
 
 SLA is the ratio between a leaf's one-sided fresh leaf area and its total dry mass. 
 
@@ -74,7 +78,7 @@ read_csv("sla_data.csv", col_types = "ccccdcdddc") %>%
   sla_raw
 ```
 
-### Inventory Data
+## Inventory Data
 
 ```{r read-inventory}
 ## Read in the TEMPEST inventory data 
@@ -110,7 +114,7 @@ if(any(duplicated(inventory$Tag))) {
 }
 ```
 
-### Join SLA and inventory data
+## Join SLA and inventory data
 
 ```{r join-sla-inventory, error = FALSE}
 sla_raw %>%
@@ -182,7 +186,9 @@ sla %>%
   sla
 ```
 
-### Summary tables
+# Results
+
+## Summary tables
 
 ```{r summary-tables}
 # Table 1: SLA by species
@@ -259,7 +265,7 @@ sla %>%
   kable_styling(bootstrap_options = bo)
 ```
 
-### Quality control plots
+## Quality control plots
 
 ```{r qc-plots}
 # Species histograms colored by canopy position 
