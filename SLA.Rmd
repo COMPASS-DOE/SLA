@@ -9,7 +9,7 @@ To do:
 * Inventory data - why duplicate tree tag warnings?
 * SLA elevation differences - use type III
 * SLA salinity differences - type III / investigate
-* Make a species-over-yday plot for litter
+* What's up with LSLE litter? Where is it?
 * Run statistics on litter data (elevation, salinity)
 * Run statistics on LAI results
 * Comparison - pull MODIS LAI? Look at other studies as well
@@ -461,6 +461,7 @@ neon_massdata %>%
 list.files("../SLA/litter/", pattern = "*.csv", full.names = TRUE) %>% 
   lapply(read_csv, col_types = "ccccddddddc") %>%
   bind_rows %>% 
+  filter(!is.na(Plot)) %>% 
   # there are duplicate rows!!!!! wtf
   distinct() %>% 
   mutate(Date_collected = mdy(Date_collected)) ->
@@ -489,15 +490,17 @@ litter_data_raw %>%
   # restructure data, using only leaf litter
   gather(Species, Value, starts_with("M_leaf")) %>% 
   # Traps are 0.5 m2; convert to 1 m2
-  mutate(Value = Value / 0.5) ->
+  mutate(Value = Value / 0.5,
+         yearday = yday(Date_collected),
+         # Add species codes
+         Species_code = species_litter_map[Species]) ->
   litter_2019
 
 litter_2019 %>% 
   # Compute sum of leaf biomass for each trap and species 
-  group_by(Plot, Species, Trap) %>% 
-  summarise(annual_litter_mass = sum(Value, na.rm = TRUE), .groups = "drop") %>%
-  # Add species codes
-  mutate(Species_code = species_litter_map[Species]) ->
+  group_by(Plot, Species_code, Trap) %>% 
+  summarise(annual_litter_mass = sum(Value, na.rm = TRUE), 
+            .groups = "drop") ->
   avg_litter
 
 # bar graph 
@@ -513,11 +516,27 @@ ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_hline(yintercept = neon_md - neon_sd, linetype = 2, alpha = 0.3) +
   geom_hline(yintercept = neon_md + neon_sd, linetype = 2, alpha = 0.3)
 
+# Litter over time - by species
 litter_2019 %>% 
   # add all species together for each day of collection and plot and trap
-  group_by(Date_collected, Plot, Trap) %>% 
+  group_by(yearday, Plot, Species_code) %>% 
+  summarise(Value = mean(Value),
+            .groups = "drop") %>% 
+  # compute cumulative litter mass for the year for each plot and species
+  arrange(yearday) %>% 
+  group_by(Plot, Species_code) %>% 
+  mutate(cum_litter = cumsum(Value))  %>% 
+  ggplot(aes(yearday, cum_litter, fill = Species_code)) + 
+  geom_area(position = "stack") + 
+  facet_wrap(~Plot) +
+  labs(x = "Day of year", 
+       y = expression(Leaf~litterfall~(g~m^-2)))
+  
+  # Litter over time - all species
+  litter_2019 %>% 
+  # add all species together for each day of collection and plot and trap
+  group_by(yearday, Plot, Trap) %>% 
   summarise(Value = sum(Value),
-            yearday = yday(unique(Date_collected)),
             .groups = "drop") %>% 
   # compute cumulative litter mass for the year for each plot and trap
   arrange(yearday) %>% 
