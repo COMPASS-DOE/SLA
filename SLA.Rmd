@@ -14,7 +14,6 @@ To do:
 * SLA elevation differences - use type III
 * SLA salinity differences - type III / investigate
 * Run statistics on litter data (elevation, salinity)
-* LAI computations seem duplicated and weird
 * Run statistics on LAI results
 * Comparison - pull MODIS LAI? Look at other studies as well
 * Start to number 'for real' tables and figures
@@ -549,9 +548,9 @@ litter_2019 %>%
   labs(x = "Day of year", 
        y = expression(Leaf~litterfall~(g~m^-2))) ->
   p_litter_2019_species
-  
-  # Litter over time - all species
-  litter_2019 %>% 
+
+# Litter over time - all species
+litter_2019 %>% 
   # add all species together for each day of collection and plot and trap
   group_by(yearday, Plot, Trap) %>% 
   summarise(Value = sum(Value, na.rm = TRUE),
@@ -575,7 +574,7 @@ annual_litter_trap %>%
 
 # Line graph
 p_avg_litter <- ggplot(annual_litter, 
-                          aes(yearday, mean_litter, color = Salinity, group = Plot)) +
+                       aes(yearday, mean_litter, color = Salinity, group = Plot)) +
   geom_line(size = 1, na.rm = TRUE) +
   labs(x = "Day of year", 
        y = expression(Leaf~litterfall~(g~m^-2))) +
@@ -603,10 +602,12 @@ save_plot("figures/fig4-litter.png", plot = litter_plot)
 
 # Join litter data with SLA data 
 
-sla_for_lai <- sla %>% 
+sla %>% 
   group_by(Plot, Species_code) %>% 
   summarise(avg_sla = mean(specific_leaf_area),
-            .groups = "drop")
+            sd_sla = sd(specific_leaf_area),
+            .groups = "drop") ->
+  sla_for_lai
 
 # At this point, we have SLA by species, but the litter data is not as resolved; 
 # there's an "Other" category we need to have an SLA for. To do this, we compute
@@ -620,14 +621,16 @@ inventory %>%
             .groups = "drop") ->
   plot_weights
 
-sla_for_lai <- sla_for_lai %>% 
+sla_for_lai %>% 
   left_join(plot_weights, by = c("Plot", "Species_code")) %>% 
   filter(!is.na(weight)) %>% 
   group_by(Plot) %>% 
   summarise(Species_code = "OTHER",
+            sd_sla = weighted.mean(sd_sla, w = weight, na.rm = TRUE),
             avg_sla = weighted.mean(avg_sla, w = weight)) %>% 
   # Now bind the SLA means with our new SLA_other data
-  bind_rows(sla_for_lai) 
+  bind_rows(sla_for_lai) ->
+  sla_for_lai
 
 # We have litter data, but no SLA samples, from HSHE/HSME/HSLE
 # For these we will use control and/or shore
@@ -646,43 +649,86 @@ if(nrow(avg_litter) != nrow(sla_litter_joined)) {
   stop("These joins should not have added any rows, but they did!")
 }
 
-lai <- sla_litter_joined %>% 
-  # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
-  mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
-  group_by(Plot, Trap) %>% 
-  # In 467, we are removing NAs from lack of certain species in some plots
-  # in the future we want to use the average values to fill these in
-  # Maybe we do this above, in 454-457, just by using overall mean values instead of a map
-  summarise(lai_trap = sum(LAI, na.rm = TRUE), .groups = "drop_last") %>% 
-  summarise(lai_plot = mean(lai_trap), 
-            lai_plot_sd = sd(lai_trap)) %>% 
-  arrange(Plot)
-print(lai)
-```
-
-
-``` {r lai-figure}
+# Fill in any remaining missing values from median of dataset
 sla_litter_joined %>% 
+  group_by(Species_code) %>% 
+  mutate(avg_sla = if_else(is.na(avg_sla), median(avg_sla, na.rm = TRUE), avg_sla),
+         sd_sla = if_else(is.na(sd_sla), median(sd_sla, na.rm = TRUE), sd_sla)) ->
+  sla_litter_joined
+
+# I want to do three Monte Carlo draws:
+# - first, based on draws from the trap uncertainty
+# - second, based on the SLA uncertainty
+# - third, based on both
+generate_lai <- function(n, alm, sd_alm, avg_sla, sd_sla) {
   # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
-  mutate(LAI = avg_sla * annual_litter_mass / (100 * 100)) %>% 
-  # Compute mean plot LAI by plot and species across traps
-  group_by(Plot, Species_code) %>% 
-  summarise(value = mean(LAI, na.rm = TRUE),
-            .groups = "drop") ->
-  lai_plot_data
+  tibble(trial = seq_len(n), 
+         alm = rnorm(n, alm, sd_alm),
+         sla = rnorm(n, avg_sla, sd_sla),
+         lai = alm * sla / (100 * 100))
+}
 
-lai_plot <- ggplot(lai_plot_data, aes(Plot, value, fill = Species_code)) +
-  geom_col() +
-  theme(axis.text.x = element_text(angle = 90), 
-        legend.title = element_text(size = 11), 
-        legend.text = element_text(size = 9),
-        plot.title = element_text(size = 11)) +
-  labs(title = "LAI at Sampling Plots", x = "Plot", y = "LAI")
-print(lai_plot)
+sla_litter_joined %>% 
+  # compute mean litter by species in each plot
+  group_by(Plot, Species_code) %>%
+  summarise(alm = mean(annual_litter_mass),
+            sd_alm = sd(annual_litter_mass),
+            avg_sla = mean(avg_sla),
+            sd_sla = mean(sd_sla),
+            .groups = "keep") ->
+  mc_data
 
+# Uncertainty from SLA
+MC_N <- 1000
+mc_data %>% 
+  # Monte Carlo LAI
+  do(generate_lai(MC_N, .$alm, sd_alm = 0, .$avg_sla, .$sd_sla)) %>% 
+  mutate(Uncertainty = "SLA") ->
+  mc_lai_sla
+
+# Uncertainty from traps
+mc_data %>% 
+  # Monte Carlo LAI
+  do(generate_lai(MC_N, .$alm, .$sd_alm, .$avg_sla, sd_sla = 0)) %>% 
+  mutate(Uncertainty = "Litter") ->
+  mc_lai_litter
+
+# Uncertainty from both
+mc_data %>% 
+  # Monte Carlo LAI
+  do(generate_lai(MC_N, .$alm, .$sd_alm, .$avg_sla, .$sd_sla)) %>% 
+  mutate(Uncertainty = "Both") ->
+  mc_lai_both
+
+bind_rows(mc_lai_sla, mc_lai_litter, mc_lai_both) %>% 
+  mutate(Uncertainty = factor(Uncertainty, levels = c("Litter", "SLA", "Both"))) %>% 
+  group_by(Uncertainty, Plot, trial) %>% 
+  summarise(lai = sum(lai), .groups = "drop") %>% 
+  ggplot(aes(lai, color = Uncertainty)) + 
+  geom_density() + 
+  facet_wrap(~Plot) +
+  labs(x = expression(LAI~(m^2~m^-2)),
+       y = "Density")
+ggsave("figures/fig5-lai-mc.png")
+
+# Compute LAI and 95% CI
+mc_lai_both %>% 
+  group_by(Plot, trial) %>% 
+  summarise(lai = sum(lai),
+            .groups = "drop_last") %>% 
+  summarise(LAI = median(lai),
+            lcl = LAI - sd(lai) * 1.96,
+            ucl = LAI + sd(lai) * 1.96) %>% 
+  transmute(Plot = Plot,
+            LAI = round(LAI, 1),
+            ci = paste0("(", format(lcl, digits = 1, nsmall = 1), ", ",
+                        format(ucl, digits = 1, nsmall = 1), ")")) %>% 
+  kable(digits = 1, format = "html",
+        caption = paste0("Table 3: LAI median and 95% confidence intervals (N = ", MC_N, " draws)")) %>%  
+  kable_styling(bootstrap_options = bo)
 ```
 
-The End.
+# The End
 
 ```{r sessionInfo}
 sessionInfo()
