@@ -20,7 +20,6 @@ To do:
 knitr::opts_chunk$set(echo = FALSE)
 
 # Load necessary packages
-library(car)
 library(dplyr)
 library(tidyr)
 library(readr)
