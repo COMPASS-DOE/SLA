@@ -37,6 +37,10 @@ library(cowplot)
 
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 
+pretty <- function(p.value) {
+  if_else(p.value < 0.001, "P < 0.001", sprintf("P = %.3f", p.value))
+}
+
 # bootstrap options for kable
 bo <- c("striped", "hover", "condensed", "responsive", full_width = FALSE)
 ```
@@ -60,6 +64,9 @@ ggmap(sites_map) +
   geom_text(data = sites, 
             aes(x = Longitude, y = Latitude, label = Plot), 
             size = 3, vjust = 2) +
+  # coordinates from https://www.neonscience.org/field-sites/serc
+  annotate(geom = "point", x = -76.560014, y = 38.890131, size = 1) +
+  annotate(geom = "text", x = -76.560014, y = 38.890131, label = "NEON Tower", size = 2.5, vjust = -1) +
   labs(x = "Longitude", y = "Latitude")
 ggsave("figures/fig1-map.png")
 ```
@@ -194,11 +201,16 @@ sla %>%
 ```{r summary-tables}
 # Table 1: SLA by species
 sla %>% 
-  group_by(Species) %>% 
+  group_by(Species_code, Species) %>% 
   summarise(n = n(), 
-            mean_SLA = mean(specific_leaf_area), 
+            mean_SLA = mean(specific_leaf_area) %>% round(1), 
             sd_SLA = sd(specific_leaf_area),
-            .groups = "drop") %>% 
+            .groups = "drop") ->
+  table1
+t1 <- split(table1, table1$Species_code)
+
+table1 %>% 
+  select(-Species_code) %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Species", "N", "SLA", "s.d."), 
         caption = "Table 1: Specific leaf area by species") %>% 
@@ -221,13 +233,26 @@ sla %>%
   group_by(Elevation) %>% 
   summarise(n = n(), 
             mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area)) %>% 
+            sd_SLA = sd(specific_leaf_area)) ->
+  table_x3
+tx3 <- split(table_x3, table_x3$Elevation)
+
+table_x3 %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Elevation", "N", "SLA", "s.d."),
         caption = "Table x3: Specific leaf area by elevation") %>% 
   kable_styling(bootstrap_options = bo)
 
 # Table x4: SLA canopy position
+sla %>%
+  mutate(Position = case_when(Position == "Low/Shade" ~ "Low", 
+                              Position == "High/Sun" ~ "High")) %>% 
+  group_by(Position) %>% 
+  summarise(n = n(),
+            mean_SLA = mean(specific_leaf_area)) %>% 
+  split(.$Position) ->
+  table_x4
+
 sla %>%
   group_by(Species, Position) %>% 
   summarise(n = n(),
@@ -243,28 +268,25 @@ sla %>%
 sla %>%
   filter(!is.na(Salinity)) %>% 
   group_by(Species, Salinity) %>% 
-  summarise(n = n(), 
-            mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area),
-            .groups = "drop") %>% 
-  kable(digits = 1, format = "html", 
-        col.names = c("Species", "Salinity exposure", "N", "SLA", "s.d."),
-        caption = "Table 5: Specific leaf area along salinity gradient") %>% 
-  kable_styling(bootstrap_options = bo)
-
-# Table 6: SLA along salinity gradient
-sla %>%
-  filter(!is.na(Salinity)) %>% 
-  group_by(Species, Salinity) %>% 
   summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 1), "±",
                              round(sd(specific_leaf_area), digits = 1),
                              paste0("(", n(), ")")),
             .groups = "drop") %>% 
   spread(Salinity, mean_SLA, fill = "") %>% 
   kable(digits = 1, format = "html",
-        caption = "Table 6: Specific leaf area (cm2/g) along salinity gradient") %>% 
+        caption = "Table x6: Specific leaf area (cm2/g) along salinity gradient") %>% 
   kable_styling(bootstrap_options = bo)
 ```
+
+In total, we obtained a total of `r nrow(sla)` SLA samples, each consisting of on average six
+leaves (with a minimum of `r ceiling(min(sla$n_Leaves))` and a maximum of `r max(sla$n_Leaves)`).
+The seven species sampled ranged from _Carya glabra_ (N = `r t1$CAGL$n`, mean SLA = `r t1$CAGL$mean_SLA`) to 
+_Fagus grandifolia_ (N = `r t1$FAGR$n`, SLA = `r t1$FAGR$mean_SLA`) (**Table 1**).
+This was a mature and thus tall deciduous forest: we obtained `r table_x4$Low$n` samples from low height, 
+and were shade leaves in the canopy, while `r table_x4$High$n` were from high sun leaves.
+Finally, `r tx3$Shoreline$n` SLA samples were from shoreline trees exposed to the changing salinity of Muddy Creek,
+while `r tx3$Upland$n` came from up-slope trees.
+
 
 ## Quality control plots
 
@@ -322,7 +344,7 @@ mod_signif_raw %>%
   ungroup() %>% 
   transmute(Species,
             p.value = round(p.value, 3),
-            p_pretty = if_else(p.value < 0.001, "P < 0.001", paste("P =", format(p.value, digits = 3))),
+            p_pretty = pretty(p.value),
             notsignif = p.value >= 0.05) ->
   mod_signif
 
@@ -353,7 +375,7 @@ msc_acru <- filter(mod_signif_clean, Species == "Acer rubrum")
 msc_litu <- filter(mod_signif_clean, Species == "Liriodendron tulipifera")
 ```
 
-Two species exhibited strong negative relationships between tree diameter (cm) and leaf SLA: _Liquidambar styraciflua_ (SLA = `r msc_list$m`D + `r msc_list$b`, `r msc_list$p_pretty`) and _Nyssa sylvatica_ (SLA = `r msc_nysy$m`D + `r msc_nysy$b`, `r msc_nysy$p_pretty`). Two others were marginally significant: _Acer rubrum_ (SLA = `r msc_acru$m`D + `r msc_acru$b`, `r msc_acru$p_pretty`) and _Liriodendron tulipifera_ (SLA = `r msc_litu$m`D + `r msc_litu$b`, `r msc_litu$p_pretty`). Tree diameter was unrelated to SLA for the other three species (Figure X).
+Two species exhibited strong negative relationships between tree diameter (cm) and leaf SLA (cm^2^ g^-1^): _Liquidambar styraciflua_ (SLA = `r msc_list$m`D + `r msc_list$b`, `r msc_list$p_pretty`) and _Nyssa sylvatica_ (SLA = `r msc_nysy$m`D + `r msc_nysy$b`, `r msc_nysy$p_pretty`). Two others were marginally significant: _Acer rubrum_ (SLA = `r msc_acru$m`D + `r msc_acru$b`, `r msc_acru$p_pretty`) and _Liriodendron tulipifera_ (SLA = `r msc_litu$m`D + `r msc_litu$b`, `r msc_litu$p_pretty`). Tree diameter was unrelated to SLA for the other three species (**Figure 2**).
 
 
 ## TRY comparison
@@ -387,6 +409,13 @@ for(sp in unique(sla$Species)) {
   }
 }
 bind_rows(ks_results, .id = "Species") %>% 
+  mutate(p_pretty = pretty(p.value)) %>% 
+  left_join(species_codes, by = "Species") ->
+  try_tests
+tryt <- split(try_tests, try_tests$Species_code)
+
+try_tests %>% 
+  select(-Species_common) %>% 
   kable(digits = 3, format = "html") %>% 
   kable_styling(bootstrap_options = bo)
 
@@ -400,9 +429,16 @@ sla %>%
 ggplot(combined_data, aes(x = SLA, fill = Source)) + 
   geom_density(alpha = 0.5) + 
   facet_wrap(~Species) +
+  theme(strip.text = element_text(face = "italic")) +
   xlab(expression(SLA~(cm^2~g^-1)))
 ggsave("figures/fig3_try.png")
 ```
+
+We used `r sum(try_tests$N_try)` species-specific observations from the TRY database 
+(Kattge et al., 2020) to contextualize our SLA observations (**Figure 3**). In general the SLA distributions
+in this study were significantly different (P < 0.001) from the
+distribution in TRY; the two exceptions were _Liriodendron tulipifera_
+(D = `r tryt$LITU$D`, `r tryt$LITU$p_pretty`) and _Nyssa sylvatica_ (D = `r tryt$NYSY$D`, `r tryt$NYSY$p_pretty`).
 
 ## Statistics {.tabset}
 
