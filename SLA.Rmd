@@ -622,7 +622,7 @@ ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_hline(yintercept = neon_md - neon_sd, linetype = 2, alpha = 0.3) +
   geom_hline(yintercept = neon_md + neon_sd, linetype = 2, alpha = 0.3)
 
-# Litter over time - by species
+# Inset plot: litter over time - by species
 litter_2019 %>% 
   # add all species together for each day of collection and plot and trap
   group_by(yearday, Plot, Species_code) %>% 
@@ -635,6 +635,7 @@ litter_2019 %>%
   ggplot(aes(yearday, cum_litter, fill = Species_code)) + 
   geom_area(position = "stack") + 
   facet_wrap(~Plot) +
+  coord_cartesian(xlim = c(184, 366)) +
   theme(plot.background = element_rect(color="black"),
         axis.title = element_blank(),
         axis.text = element_blank(),
