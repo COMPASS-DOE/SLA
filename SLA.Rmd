@@ -35,6 +35,7 @@ library(cowplot)
 theme_set(theme_cowplot())
 library(ggmap)
 library(agricolae)
+library(broom)
 
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 
@@ -219,16 +220,16 @@ table1 %>%
   kable_styling(bootstrap_options = bo)
 
 # Table x2: SLA by species and plot
-sla %>% 
-  group_by(Species, Plot) %>% 
-  summarise(n = n(), 
-            mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area),
-            .groups = "drop") %>% 
-  kable(digits = 1, format = "html", 
-        col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
-        caption = "Table x2: Specific leaf area by plot") %>% 
-  kable_styling(bootstrap_options = bo)
+# sla %>% 
+#   group_by(Species, Plot) %>% 
+#   summarise(n = n(), 
+#             mean_SLA = mean(specific_leaf_area), 
+#             sd_SLA = sd(specific_leaf_area),
+#             .groups = "drop") %>% 
+#   kable(digits = 1, format = "html", 
+#         col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
+#         caption = "Table x2: Specific leaf area by plot") %>% 
+#   kable_styling(bootstrap_options = bo)
 
 # Table x3: SLA by elevation
 sla %>% 
@@ -276,7 +277,7 @@ sla %>%
             .groups = "drop") %>% 
   spread(Salinity, mean_SLA, fill = "") %>% 
   kable(digits = 1, format = "html",
-        caption = "Table x6: Specific leaf area (cm2/g) along salinity gradient") %>% 
+        caption = "Table 2: Specific leaf area (cm2/g) along salinity gradient") %>% 
   kable_styling(bootstrap_options = bo)
 ```
 
@@ -319,7 +320,7 @@ sla %>%
   # Determine which relationships are significant or not
   group_by(Species) %>% 
   do(mod = lm(specific_leaf_area ~ DBH, data = .)) %>% 
-  broom::tidy(mod) ->
+  tidy(mod) ->
   mod_signif_raw
 
 mod_signif_raw %>% 
@@ -365,6 +366,132 @@ msc_litu <- filter(mod_signif_clean, Species == "Liriodendron tulipifera")
 
 Two species exhibited strong negative relationships between tree diameter (cm) and leaf SLA (cm^2^ g^-1^): _Liquidambar styraciflua_ (SLA = `r msc_list$m`D + `r msc_list$b`, `r msc_list$p_pretty`) and _Nyssa sylvatica_ (SLA = `r msc_nysy$m`D + `r msc_nysy$b`, `r msc_nysy$p_pretty`). Two others were marginally significant: _Acer rubrum_ (SLA = `r msc_acru$m`D + `r msc_acru$b`, `r msc_acru$p_pretty`) and _Liriodendron tulipifera_ (SLA = `r msc_litu$m`D + `r msc_litu$b`, `r msc_litu$p_pretty`). Tree diameter was unrelated to SLA for the other three species (**Figure 2**).
 
+## Statistics {.tabset}
+
+```{r stats-prep}
+sla %>% 
+  mutate(Species = gsub(" ", "\n", Species)) ->
+  sla_figs
+```
+
+### Species and position differences
+
+```{r stats-species}
+# SLA by species and canopy position
+ggplot(sla_figs, aes(Species, specific_leaf_area)) +
+  geom_boxplot(aes(fill = Position)) +
+  labs(x = "Species", y = expression(SLA~(cm^2~g^-1))) +
+  theme(axis.text.x = element_text(size = 8))
+
+# Does SLA differ between species? Tukey HSD test (from agricolae package for group labeling)
+m_species <- aov(specific_leaf_area ~ Species_code * Position, data = sla)
+print(summary(m_species))
+msp <- tidy(m_species) %>% 
+  mutate(statistic = round(statistic, 3),
+         term = if_else(grepl(":", term), "Interaction", term))
+msp <- split(msp, msp$term)  # for text printing below
+
+effect <- with(sla, interaction(Species_code, Position))
+hsd_species <- HSD.test(aov(specific_leaf_area ~ effect, data = sla),
+                        "effect", group = TRUE, unbalanced = TRUE, console = TRUE)
+
+# Make a nice plot
+sla %>%
+  group_by(Species_code, Position) %>% 
+  summarise(sd_sla = sd(specific_leaf_area), .groups = "drop") ->
+  xx
+
+hsd_species$groups %>% 
+  mutate(species = rownames(hsd_species$groups)) %>% 
+  separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>% 
+  mutate(species = forcats::fct_reorder(species, specific_leaf_area)) %>% 
+  left_join(xx, by = c("Species_code", "Position")) ->
+  species_position
+
+species_position %>% 
+  ggplot(aes(species, specific_leaf_area, fill = Position)) + geom_col() +
+  geom_text(aes(label = groups), vjust = -1) + 
+  geom_errorbar(aes(ymin = specific_leaf_area - sd_sla, ymax = specific_leaf_area + sd_sla), alpha = 0.25) +
+  scale_x_discrete("Species", labels = species_position$Species_code) +
+  ylab(expression(SLA~(cm^2~g^-1))) +
+  theme(legend.position = c(0.2, 0.8),
+        axis.text.x = element_text(size = 8))
+ggsave("figures/fig3-species_position.png")
+
+# Does SLA vary between high and low canopy position?
+# Here we can use a PAIRED t-test because samples taken from same trees
+sla %>% 
+  # Some trees were sampled more than once. Just look at earlier samples for simplicity
+  filter(mdy(Date) < mdy("8/1/2019")) %>% 
+  select(Plot, Species_common, DBH, Tag, Position, specific_leaf_area) %>% 
+  spread(Position, specific_leaf_area) -> 
+  sla_position
+
+tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
+print(tt_position)
+```
+
+In a linear model with species and canopy position as interacting terms predicting SLA, both terms
+were highly significant: species (F[1,`r msp$Species_code$df`] = `r msp$Species_code$statistic`, 
+`r prettyp(msp$Species_code$p.value)`) and position (F[1,`r msp$Position$df`] = `r msp$Position$statistic`, 
+`r prettyp(msp$Position$p.value)`); their interaction was not (F[1,`r msp$Interaction$df`] =
+`r msp$Interaction$statistic`, `r prettyp(msp$Interaction$p.value)`). A Tukey's HSD test categorized
+the SLA values in this model into five groups, summarized visually in **Figure 3**. Because 
+high- and low-canopy samples were frequently taken from common trees, we also used a paired T-test to
+examine the effect of canopy position. This was also highly significant (T[`r tt_position$parameter`] = 
+`r round(tt_position$statistic, 3)`, `r prettyp(tt_position$p.value)`), indicating, as expected, that
+high-position (sun) leaves tended to have significantly lower SLA than low (shade) leaves.
+
+### Elevation differences
+
+```{r stats-elevation}
+# SLA by elevation
+ggplot(sla_figs, aes(Species, specific_leaf_area)) +
+  geom_boxplot(aes(fill = Elevation)) + 
+  labs(x = "Species", y = expression(SLA~(cm^2~g^-1))) +
+  theme(axis.text.x = element_text(size = 8))
+
+# Does SLA differ between elevations after accounting for species?
+m_elevation <- aov(specific_leaf_area ~ Species_code * Elevation, data = sla)
+print(summary(m_elevation))
+mel <- tidy(m_elevation) %>% 
+  mutate(statistic = round(statistic, 3),
+         term = if_else(grepl(":", term), "Interaction", term))
+mel <- split(mel, mel$term)  # for text printing below
+
+# Run for each species with data at both elevations
+sla %>%
+  group_by(Species) %>% 
+  summarise(nel = length(unique(Elevation))) %>% 
+  filter(nel > 1) %>% 
+  left_join(sla, by = "Species") %>%
+  group_by(Species) %>% 
+  do(mod = lm(specific_leaf_area ~ Elevation, data = .)) %>% 
+  tidy(mod) %>% 
+  filter(term != "(Intercept)") %>% 
+  left_join(species_codes, by = "Species") ->
+  mel_sp
+mel_sp <- split(mel_sp, mel_sp$Species_code)
+```
+
+As noted above, roughly 40% of our trees were shoreline, and the balance up-slope, away from Muddy Creek.
+This elevation effect was marginally significant after accounting for species 
+(F[1,`r mel$Elevation$df`] = `r mel$Elevation$statistic`, 
+`r prettyp(mel$Elevation$p.value)`), and the interaction between species and elevation was significant
+(F[1,`r mel$Interaction$df`] = `r mel$Interaction$statistic`, `r prettyp(mel$Interaction$p.value)`). 
+Of the five species that occurred at both low and higher elevations, this effect on SLA
+was highly significant for _Quercus alba_ (`r prettyp(mel_sp$QUAL$p.value)`),
+significant (0.01 < P < 0.05) for _Nyssa sylvatica_ and _Acer rubrum_, marginally significant
+(`r prettyp(mel_sp$FAGR$p.value)`) for _Fagus grandifolia_, and not significant for 
+_Liquidambar styraciflua_ (`r prettyp(mel_sp$LIST$p.value)`).
+
+### Salinity differences
+
+```{r stats-salinity}
+# Does salinity affect SLA?
+m_salinity <- lm(specific_leaf_area ~ Species * Salinity, data = sla)
+print(car::Anova(m_salinity))
+```
 
 ## TRY comparison
 
@@ -428,102 +555,6 @@ We used `r sum(try_tests$N_try)` species-specific observations from the TRY data
 In general the SLA distributions in this study were significantly different (P < 0.001) from the
 distribution in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r tryt$LITU$D`, 
 `r tryt$LITU$p_pretty`) and _Nyssa sylvatica_ (D = `r tryt$NYSY$D`, `r tryt$NYSY$p_pretty`).
-
-## Statistics {.tabset}
-
-```{r stats-prep}
-sla %>% 
-  mutate(Species = gsub(" ", "\n", Species)) ->
-  sla_figs
-```
-
-### Species and position differences
-
-```{r stats-species}
-# SLA by species and canopy position
-ggplot(sla_figs, aes(Species, specific_leaf_area)) +
-  geom_boxplot(aes(fill = Position)) +
-  labs(x = "Species", y = expression(SLA~(cm^2~g^-1)))
-
-# Does SLA differ between species? Tukey HSD test (from agricolae package for group labeling)
-m_species <- aov(specific_leaf_area ~ Species_code * Position, data = sla)
-print(summary(m_species))
-msp <- broom::tidy(m_species) %>% 
-  mutate(statistic = round(statistic, 3),
-         term = if_else(grepl(":", term), "Interaction", term))
-msp <- split(msp, msp$term)  # for text printing below
-
-effect <- with(sla, interaction(Species_code, Position))
-hsd_species <- HSD.test(aov(specific_leaf_area ~ effect, data = sla),
-                        "effect", group = TRUE, unbalanced = TRUE, console = TRUE)
-
-# Make a nice plot
-sla %>%
-  group_by(Species_code, Position) %>% 
-  summarise(sd_sla = sd(specific_leaf_area), .groups = "drop") ->
-  xx
-
-hsd_species$groups %>% 
-  mutate(species = rownames(hsd_species$groups)) %>% 
-  separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>% 
-  mutate(species = forcats::fct_reorder(species, specific_leaf_area)) %>% 
-  left_join(xx, by = c("Species_code", "Position")) ->
-  species_position
-
-species_position %>% 
-  ggplot(aes(species, specific_leaf_area, fill = Position)) + geom_col() +
-  geom_text(aes(label = groups), vjust = -1) + 
-  geom_errorbar(aes(ymin = specific_leaf_area - sd_sla, ymax = specific_leaf_area + sd_sla), alpha = 0.25) +
-  scale_x_discrete("Species", labels = species_position$Species_code) +
-  ylab(expression(SLA~(cm^2~g^-1))) +
-  theme(legend.position = c(0.2, 0.8),
-        axis.text.x = element_text(size = 8))
-ggsave("figures/fig3-species_position.png")
-
-# Does SLA vary between high and low canopy position?
-# Here we can use a PAIRED t-test because samples taken from same trees
-sla %>% 
-  # Some trees were sampled more than once. Just look at earlier samples for simplicity
-  filter(mdy(Date) < mdy("8/1/2019")) %>% 
-  select(Plot, Species_common, DBH, Tag, Position, specific_leaf_area) %>% 
-  spread(Position, specific_leaf_area) -> 
-  sla_position
-
-tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
-print(tt_position)
-```
-
-In a linear model with species and canopy position as interacting terms predicting SLA, both terms
-were highly significant: species (F[1,`r msp$Species_code$df`] = `r msp$Species_code$statistic`, 
-`r prettyp(msp$Species_code$p.value)`) and position (F[1,`r msp$Position$df`] = `r msp$Position$statistic`, 
-`r prettyp(msp$Position$p.value)`); their interaction was not (F[1,`r msp$Interaction$df`] =
-`r msp$Interaction$statistic`, `r prettyp(msp$Interaction$p.value)`). A Tukey's HSD test categorized
-the SLA values in this model into five groups, summarized visually in **Figure 3**. Because 
-high- and low-canopy samples were frequently taken from common trees, we also used a paired T-test to
-examine the effect of canopy position. This was also highly significant (T[`r tt_position$parameter`] = 
-`r round(tt_position$statistic, 3)`, `r prettyp(tt_position$p.value)`), indicating, as expected, that
-high-position (sun) leaves tended to have significantly lower SLA than low (shade) leaves.
-
-### Elevation differences
-
-```{r stats-elevation}
-# SLA by elevation
-ggplot(sla_figs, aes(Species, specific_leaf_area)) +
-  geom_boxplot(aes(fill = Elevation)) + 
-  labs(x = "Species", y = expression(SLA~(cm^2~g^-1)))
-
-# Does SLA between shoreline and upland AFTER accounting for species?
-m_elevation <- lm(specific_leaf_area ~ Species * Elevation, data = sla)
-print(car::Anova(m_elevation, type = "II"))
-```
-
-### Salinity differences
-
-```{r stats-salinity}
-# Does salinity affect SLA?
-m_salinity <- lm(specific_leaf_area ~ Species * Salinity, data = sla)
-print(car::Anova(m_salinity))
-```
 
 ## Litter data
 
