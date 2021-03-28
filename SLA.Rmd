@@ -193,7 +193,8 @@ salinities <- tibble(Plot = shoreline_plots,
                      Salinity = c("High", "High", "Medium", "Low"))
 sla %>% 
   left_join(salinities, by = "Plot") %>% 
-  mutate(Salinity = factor(Salinity, levels = c("Low", "Medium", "High"))) ->
+  mutate(Salinity = factor(Salinity, levels = c("Low", "Medium", "High"))) %>% 
+  select(-starts_with("No_"), Notes.x, Notes.y) ->
   sla
 ```
 
@@ -488,10 +489,47 @@ _Liquidambar styraciflua_ (`r prettyp(mel_sp$LIST$p.value)`).
 ### Salinity differences
 
 ```{r stats-salinity}
-# Does salinity affect SLA?
-m_salinity <- lm(specific_leaf_area ~ Species * Salinity, data = sla)
-print(car::Anova(m_salinity))
+sla_sal <- filter(sla, Elevation == "Shoreline")
+
+ggplot(filter(sla_sal, Elevation == "Shoreline"), aes(Salinity, specific_leaf_area)) +
+  geom_boxplot() +
+  facet_wrap(~Species) +
+  ylab(expression(SLA~(cm^2~g^-1))) +
+  theme(strip.text = element_text(face = "italic"))
+ggsave("figures/fig4_salinity.png")
+
+# Does SLA differ between elevations after accounting for species?
+m_salinity <- aov(specific_leaf_area ~ Species_code * Salinity, data = sla_sal)
+print(summary(m_salinity))
+msa <- tidy(m_salinity) %>% 
+  mutate(statistic = round(statistic, 3),
+         term = if_else(grepl(":", term), "Interaction", term))
+msa <- split(msa, msa$term)  # for text printing below
+
+# Run for each species, grouping lower-salinity sites together
+sla_sal %>%
+  mutate(Salinity2 = if_else(Salinity == "High", "High", "Low")) %>% 
+  group_by(Species) %>% 
+  do(mod = lm(specific_leaf_area ~ Salinity2, data = .)) %>% 
+  tidy(mod) %>% 
+  filter(term != "(Intercept)") %>% 
+  left_join(species_codes, by = "Species") ->
+  msa_sp
+msa_sp <- split(msa_sp, msa_sp$Species_code)
 ```
+
+Our central hypothesis was that salinity exposure would consistently affect tree SLA.
+In an overall analysis of variance, this salinity effect was marginally significant after accounting for species 
+(F[1,`r msa$Salinity$df`] = `r msa$Salinity$statistic`, 
+`r prettyp(msa$Salinity$p.value)`), but the interaction between species and salinity was not
+(F[1,`r msa$Interaction$df`] = `r msa$Interaction$statistic`, `r prettyp(msa$Interaction$p.value)`). 
+In general, there was no difference in SLA between the two lower-salinity sites (**Figure 4**),
+and thus we proceeded with species-specific tests that compared the high-salinity GCREW site 
+(cf. **Figure 1**) versus the other two. SLA was numerically smaller under high-salinity
+conditions for all five species tested; this difference was statistically significant for three:
+_Acer rubrum_ (`r prettyp(msa_sp$ACRU$p.value)`), _Liquidambar styraciflua_
+(`r prettyp(msa_sp$LIST$p.value)`), and _Nyssa sylvatica_ (`r prettyp(msa_sp$NYSY$p.value)`).
+
 
 ## TRY comparison
 
@@ -547,13 +585,13 @@ ggplot(combined_data, aes(x = SLA, fill = Source)) +
   facet_wrap(~Species) +
   theme(strip.text = element_text(face = "italic")) +
   xlab(expression(SLA~(cm^2~g^-1)))
-ggsave("figures/fig4_try.png")
+ggsave("figures/fig5_try.png")
 ```
 
 We used `r sum(try_tests$N_try)` species-specific observations from the TRY database 
 (Kattge et al., 2020) to put our SLA observations into a broader context(**Figure 3**).
 In general the SLA distributions in this study were significantly different (P < 0.001) from the
-distribution in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r tryt$LITU$D`, 
+distributions in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r tryt$LITU$D`, 
 `r tryt$LITU$p_pretty`) and _Nyssa sylvatica_ (D = `r tryt$NYSY$D`, `r tryt$NYSY$p_pretty`).
 
 ## Litter data
@@ -721,7 +759,7 @@ litter_plot  <-
   draw_plot(p_avg_litter) +
   draw_plot(p_litter_2019_species, x = 0.15, y = .45, width = 0.5, height = 0.5)
 print(litter_plot)
-save_plot("figures/fig5-litter.png", plot = litter_plot)
+save_plot("figures/fig6-litter.png", plot = litter_plot)
 
 ```
 
@@ -838,7 +876,7 @@ bind_rows(mc_lai_sla, mc_lai_litter, mc_lai_both) %>%
   facet_wrap(~Plot) +
   labs(x = expression(LAI~(m^2~m^-2)),
        y = "Density")
-ggsave("figures/fig6-lai-mc.png")
+ggsave("figures/fig7-lai-mc.png")
 
 # Compute LAI and 95% CI
 mc_lai_both %>% 
