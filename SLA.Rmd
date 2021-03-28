@@ -11,6 +11,7 @@ output:
 
 To do:
 * Inventory data - why duplicate tree tag warnings?
+* Have consistent ordering for plots and salinity (low->high?)
 * SLA elevation differences - use type III
 * SLA salinity differences - type III / investigate
 * Run statistics on litter data (elevation, salinity)
@@ -267,7 +268,7 @@ sla %>%
 
 ## Quality control plots
 
-```{r qc-plots}
+```{r qc-plots, fig.show="hold", out.width="50%"}
 # Species histograms colored by canopy position 
 ggplot(sla, aes(x = specific_leaf_area, fill = Position)) + 
   geom_histogram(bins = 30) +
@@ -333,9 +334,27 @@ sla %>%
   geom_smooth(method = "lm", formula = y ~ x, 
               aes(linetype = notsignif), show.legend = FALSE) +
   labs(x = "DBH (cm)", y = expression(SLA~(cm^2~g^-1))) +
+  theme(strip.text = element_text(face = "italic")) +
   geom_text(data = mod_signif, x = 60, y = 500, aes(label = p_pretty))
 ggsave("figures/fig2_sla-vs-dbh.png")
+
+# Data for text 
+mod_signif %>% 
+  filter(p.value < 0.1) %>% 
+  left_join(mod_signif_raw, by = "Species") %>% 
+  select(Species, term, estimate, p_pretty) %>% 
+  spread(term, estimate) %>% 
+  mutate(b = sprintf("%.1f", `(Intercept)`),
+         m = sprintf("%.3f", DBH)) -> 
+  mod_signif_clean
+msc_list <- filter(mod_signif_clean, Species == "Liquidambar styraciflua")
+msc_nysy <- filter(mod_signif_clean, Species == "Nyssa sylvatica")
+msc_acru <- filter(mod_signif_clean, Species == "Acer rubrum")
+msc_litu <- filter(mod_signif_clean, Species == "Liriodendron tulipifera")
 ```
+
+Two species exhibited strong negative relationships between tree diameter (cm) and leaf SLA: _Liquidambar styraciflua_ (SLA = `r msc_list$m`D + `r msc_list$b`, `r msc_list$p_pretty`) and _Nyssa sylvatica_ (SLA = `r msc_nysy$m`D + `r msc_nysy$b`, `r msc_nysy$p_pretty`). Two others were marginally significant: _Acer rubrum_ (SLA = `r msc_acru$m`D + `r msc_acru$b`, `r msc_acru$p_pretty`) and _Liriodendron tulipifera_ (SLA = `r msc_litu$m`D + `r msc_litu$b`, `r msc_litu$p_pretty`). Tree diameter was unrelated to SLA for the other three species (Figure X).
+
 
 ## TRY comparison
 
@@ -656,7 +675,7 @@ sla_litter_joined %>%
          sd_sla = if_else(is.na(sd_sla), median(sd_sla, na.rm = TRUE), sd_sla)) ->
   sla_litter_joined
 
-# I want to do three Monte Carlo draws:
+# We do three Monte Carlo draws:
 # - first, based on draws from the trap uncertainty
 # - second, based on the SLA uncertainty
 # - third, based on both
@@ -675,7 +694,7 @@ sla_litter_joined %>%
             sd_alm = sd(annual_litter_mass),
             avg_sla = mean(avg_sla),
             sd_sla = mean(sd_sla),
-            .groups = "keep") ->
+            .groups = "keep") ->   # note this line is critical!
   mc_data
 
 # Uncertainty from SLA
