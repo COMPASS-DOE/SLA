@@ -37,7 +37,7 @@ library(cowplot)
 
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 
-pretty <- function(p.value) {
+prettyp <- function(p.value) {
   if_else(p.value < 0.001, "P < 0.001", sprintf("P = %.3f", p.value))
 }
 
@@ -344,7 +344,7 @@ mod_signif_raw %>%
   ungroup() %>% 
   transmute(Species,
             p.value = round(p.value, 3),
-            p_pretty = pretty(p.value),
+            p_pretty = prettyp(p.value),
             notsignif = p.value >= 0.05) ->
   mod_signif
 
@@ -409,7 +409,8 @@ for(sp in unique(sla$Species)) {
   }
 }
 bind_rows(ks_results, .id = "Species") %>% 
-  mutate(p_pretty = pretty(p.value)) %>% 
+  mutate(D = round(D, 3),
+         p_pretty = prettyp(p.value)) %>% 
   left_join(species_codes, by = "Species") ->
   try_tests
 tryt <- split(try_tests, try_tests$Species_code)
@@ -435,10 +436,10 @@ ggsave("figures/fig3_try.png")
 ```
 
 We used `r sum(try_tests$N_try)` species-specific observations from the TRY database 
-(Kattge et al., 2020) to contextualize our SLA observations (**Figure 3**). In general the SLA distributions
-in this study were significantly different (P < 0.001) from the
-distribution in TRY; the two exceptions were _Liriodendron tulipifera_
-(D = `r tryt$LITU$D`, `r tryt$LITU$p_pretty`) and _Nyssa sylvatica_ (D = `r tryt$NYSY$D`, `r tryt$NYSY$p_pretty`).
+(Kattge et al., 2020) to put our SLA observations into a broader context(**Figure 3**).
+In general the SLA distributions in this study were significantly different (P < 0.001) from the
+distribution in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r tryt$LITU$D`, 
+`r tryt$LITU$p_pretty`) and _Nyssa sylvatica_ (D = `r tryt$NYSY$D`, `r tryt$NYSY$p_pretty`).
 
 ## Statistics {.tabset}
 
