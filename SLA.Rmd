@@ -408,11 +408,11 @@ hsd_species$groups %>%
 
 species_position %>% 
   ggplot(aes(species, specific_leaf_area, fill = Position)) + geom_col() +
+  geom_errorbar(aes(ymin = specific_leaf_area - sd_sla, ymax = specific_leaf_area + sd_sla), alpha = 0.33) +
   geom_text(aes(label = groups), vjust = -1) + 
-  geom_errorbar(aes(ymin = specific_leaf_area - sd_sla, ymax = specific_leaf_area + sd_sla), alpha = 0.25) +
   scale_x_discrete("Species", labels = species_position$Species_code) +
   ylab(expression(SLA~(cm^2~g^-1))) +
-  theme(legend.position = c(0.2, 0.8),
+  theme(legend.position = c(0.15, 0.8),
         axis.text.x = element_text(size = 8))
 ggsave("figures/fig3-species_position.png")
 
@@ -581,7 +581,8 @@ ggplot(combined_data, aes(x = SLA, fill = Source)) +
   geom_density(alpha = 0.5) + 
   facet_wrap(~Species) +
   theme(strip.text = element_text(face = "italic")) +
-  xlab(expression(SLA~(cm^2~g^-1)))
+  xlab(expression(SLA~(cm^2~g^-1))) +
+  theme(legend.position = c(0.6, 0.15))
 ggsave("figures/fig5_try.png")
 ```
 
@@ -927,16 +928,16 @@ mc_lai_plot %>%
 ```
 
 Overall leaf area index (LAI, m2 m^-2^) inferred from the combination of SLA and litterfall data
-ranged from a value of `r min(mc_lai_plot$LAI)` 
+ranged from `r min(mc_lai_plot$LAI)` 
 with a 95% confidence interval of `r mc_lai_plot$ci[which.min(mc_lai_plot$LAI)]`
 (in the high-elevation, medium-salinity "Canoe Shed" plot) to `r max(mc_lai_plot$LAI)`
 `r mc_lai_plot$ci[which.max(mc_lai_plot$LAI)]` (in the mid-elevation plot at the low-salinity 
 "North Branch" site). The low-elevation plots' LAI values were inversely related to their salinity
-exposure, with values from `r mc_lai_sal$HSLE$LAI` `r mc_lai_sal$HSLE$ci` to 
-`r mc_lai_sal$MSLE$LAI` `r mc_lai_sal$MSLE$ci` to `r mc_lai_sal$LSLE$LAI` `r mc_lai_sal$LSLE$ci` 
-at the lowest-salinity plot. 
-Spatial variability in leaf litter production contributed much more to the variability in LAI estimates
-than did variability in SLA measurements (**Figure 7**).
+exposure, with values from `r mc_lai_sal$HSLE$LAI` `r mc_lai_sal$HSLE$ci` at the high-salinity site,
+to `r mc_lai_sal$MSLE$LAI` `r mc_lai_sal$MSLE$ci`,
+to `r mc_lai_sal$LSLE$LAI` `r mc_lai_sal$LSLE$ci` at the lowest-salinity plot. 
+Spatial variability in leaf litter production contributed much more to the uncertainty in LAI 
+estimates than did variability in the SLA measurements (**Figure 7**).
 
 # The End
 
