@@ -10,6 +10,7 @@ output:
 ---
 
 To do:
+
 * Inventory data - why duplicate tree tag warnings?
 * Have consistent ordering for plots and salinity (low->high?)
 * SLA elevation differences - use type III
@@ -17,7 +18,6 @@ To do:
 * Run statistics on litter data (elevation, salinity)
 * Run statistics on LAI results
 * Comparison - pull MODIS LAI? Look at other studies as well
-* Start to number 'for real' tables and figures
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -31,9 +31,10 @@ library(knitr)
 library(kableExtra)
 library(lubridate)
 library(ggplot2)
-theme_set(theme_minimal())
-library(ggmap)
 library(cowplot)
+theme_set(theme_cowplot())
+library(ggmap)
+library(agricolae)
 
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 
@@ -67,7 +68,8 @@ ggmap(sites_map) +
   # coordinates from https://www.neonscience.org/field-sites/serc
   annotate(geom = "point", x = -76.560014, y = 38.890131, size = 1) +
   annotate(geom = "text", x = -76.560014, y = 38.890131, label = "NEON Tower", size = 2.5, vjust = -1) +
-  labs(x = "Longitude", y = "Latitude")
+  labs(x = "Longitude", y = "Latitude") +
+  theme(axis.text = element_text(size = 10))
 ggsave("figures/fig1-map.png")
 ```
 
@@ -280,12 +282,12 @@ sla %>%
 
 In total, we obtained a total of `r nrow(sla)` SLA samples, each consisting of on average six
 leaves (with a minimum of `r ceiling(min(sla$n_Leaves))` and a maximum of `r max(sla$n_Leaves)`).
-The seven species sampled ranged from _Carya glabra_ (N = `r t1$CAGL$n`, mean SLA = `r t1$CAGL$mean_SLA`) to 
-_Fagus grandifolia_ (N = `r t1$FAGR$n`, SLA = `r t1$FAGR$mean_SLA`) (**Table 1**).
+The seven tree species sampled ranged from _Carya glabra_ (N = `r t1$CAGL$n`, mean SLA = 
+`r t1$CAGL$mean_SLA`) to _Fagus grandifolia_ (N = `r t1$FAGR$n`, SLA = `r t1$FAGR$mean_SLA`) (**Table 1**).
 This was a mature and thus tall deciduous forest: we obtained `r table_x4$Low$n` samples from low height, 
 and were shade leaves in the canopy, while `r table_x4$High$n` were from high sun leaves.
-Finally, `r tx3$Shoreline$n` SLA samples were from shoreline trees exposed to the changing salinity of Muddy Creek,
-while `r tx3$Upland$n` came from up-slope trees.
+Across all our SLA samples, `r tx3$Shoreline$n` were from shoreline trees directly exposed to the
+changing salinity of Muddy Creek, while `r tx3$Upland$n` came from up-slope trees.
 
 
 ## Quality control plots
@@ -309,23 +311,9 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
   geom_smooth(method = "lm", formula = y ~ x)
 ```
 
-## Primary figures
+## DBH versus SLA
 
 ``` {r figures, echo=FALSE}
-sla %>% 
-  mutate(Species = gsub(" ", "\n", Species)) ->
-  sla_figs
-
-# SLA by species and canopy position
-ggplot(sla_figs, aes(Species, specific_leaf_area)) +
-  geom_boxplot(aes(fill = Position)) +
-  labs(x = "Species", y = expression(SLA~(cm^2~g^-1)))
-
-# SLA by elevation
-ggplot(sla_figs, aes(Species, specific_leaf_area)) +
-  geom_boxplot(aes(fill = Elevation)) + 
-  labs(x = "Species", y = expression(SLA~(cm^2~g^-1)))
-
 # Figure 1: SLA versus tree size by species
 sla %>%
   # Determine which relationships are significant or not
@@ -432,7 +420,7 @@ ggplot(combined_data, aes(x = SLA, fill = Source)) +
   facet_wrap(~Species) +
   theme(strip.text = element_text(face = "italic")) +
   xlab(expression(SLA~(cm^2~g^-1)))
-ggsave("figures/fig3_try.png")
+ggsave("figures/fig4_try.png")
 ```
 
 We used `r sum(try_tests$N_try)` species-specific observations from the TRY database 
@@ -443,26 +431,55 @@ distribution in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r tr
 
 ## Statistics {.tabset}
 
-### Species differences
+```{r stats-prep}
+sla %>% 
+  mutate(Species = gsub(" ", "\n", Species)) ->
+  sla_figs
+```
+
+### Species and position differences
 
 ```{r stats-species}
-# Does SLA differ between species? An overall test
-m_species <- lm(specific_leaf_area ~ Species_code, data = sla)
+# SLA by species and canopy position
+ggplot(sla_figs, aes(Species, specific_leaf_area)) +
+  geom_boxplot(aes(fill = Position)) +
+  labs(x = "Species", y = expression(SLA~(cm^2~g^-1)))
+
+# Does SLA differ between species? Tukey HSD test (from agricolae package for group labeling)
+m_species <- aov(specific_leaf_area ~ Species_code * Position, data = sla)
 print(summary(m_species))
-TukeyHSD(aov(m_species))
-```
+msp <- broom::tidy(m_species) %>% 
+  mutate(statistic = round(statistic, 3),
+         term = if_else(grepl(":", term), "Interaction", term))
+msp <- split(msp, msp$term)  # for text printing below
 
-### Elevation differences
+effect <- with(sla, interaction(Species_code, Position))
+hsd_species <- HSD.test(aov(specific_leaf_area ~ effect, data = sla),
+                        "effect", group = TRUE, unbalanced = TRUE, console = TRUE)
 
-```{r stats-elevation}
-# Does SLA between shoreline and upland AFTER accounting for species?
-m_elevation <- lm(specific_leaf_area ~ Species * Elevation, data = sla)
-print(car::Anova(m_elevation, type = "II"))
-```
+# Make a nice plot
+sla %>%
+  group_by(Species_code, Position) %>% 
+  summarise(sd_sla = sd(specific_leaf_area), .groups = "drop") ->
+  xx
 
-### Position differences
+hsd_species$groups %>% 
+  mutate(species = rownames(hsd_species$groups)) %>% 
+  separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>% 
+  mutate(species = forcats::fct_reorder(species, specific_leaf_area)) %>% 
+  left_join(xx, by = c("Species_code", "Position")) ->
+  species_position
 
-```{r stats-position}
+species_position %>% 
+  ggplot(aes(species, specific_leaf_area, fill = Position)) + geom_col() +
+  geom_text(aes(label = groups), vjust = -1) + 
+  geom_errorbar(aes(ymin = specific_leaf_area - sd_sla, ymax = specific_leaf_area + sd_sla), alpha = 0.25) +
+  scale_x_discrete("Species", labels = species_position$Species_code) +
+  ylab(expression(SLA~(cm^2~g^-1))) +
+  theme(legend.position = c(0.2, 0.8),
+        axis.text.x = element_text(size = 8))
+ggsave("figures/fig3-species_position.png")
+
 # Does SLA vary between high and low canopy position?
 # Here we can use a PAIRED t-test because samples taken from same trees
 sla %>% 
@@ -474,6 +491,30 @@ sla %>%
 
 tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
 print(tt_position)
+```
+
+In a linear model with species and canopy position as interacting terms predicting SLA, both terms
+were highly significant: species (F[1,`r msp$Species_code$df`] = `r msp$Species_code$statistic`, 
+`r prettyp(msp$Species_code$p.value)`) and position (F[1,`r msp$Position$df`] = `r msp$Position$statistic`, 
+`r prettyp(msp$Position$p.value)`); their interaction was not (F[1,`r msp$Interaction$df`] =
+`r msp$Interaction$statistic`, `r prettyp(msp$Interaction$p.value)`). A Tukey's HSD test categorized
+the SLA values in this model into five groups, summarized visually in **Figure 3**. Because 
+high- and low-canopy samples were frequently taken from common trees, we also used a paired T-test to
+examine the effect of canopy position. This was also highly significant (T[`r tt_position$parameter`] = 
+`r round(tt_position$statistic, 3)`, `r prettyp(tt_position$p.value)`), indicating, as expected, that
+high-position (sun) leaves tended to have significantly lower SLA than low (shade) leaves.
+
+### Elevation differences
+
+```{r stats-elevation}
+# SLA by elevation
+ggplot(sla_figs, aes(Species, specific_leaf_area)) +
+  geom_boxplot(aes(fill = Elevation)) + 
+  labs(x = "Species", y = expression(SLA~(cm^2~g^-1)))
+
+# Does SLA between shoreline and upland AFTER accounting for species?
+m_elevation <- lm(specific_leaf_area ~ Species * Elevation, data = sla)
+print(car::Anova(m_elevation, type = "II"))
 ```
 
 ### Salinity differences
@@ -648,7 +689,7 @@ litter_plot  <-
   draw_plot(p_avg_litter) +
   draw_plot(p_litter_2019_species, x = 0.15, y = .45, width = 0.5, height = 0.5)
 print(litter_plot)
-save_plot("figures/fig4-litter.png", plot = litter_plot)
+save_plot("figures/fig5-litter.png", plot = litter_plot)
 
 ```
 
@@ -765,7 +806,7 @@ bind_rows(mc_lai_sla, mc_lai_litter, mc_lai_both) %>%
   facet_wrap(~Plot) +
   labs(x = expression(LAI~(m^2~m^-2)),
        y = "Density")
-ggsave("figures/fig5-lai-mc.png")
+ggsave("figures/fig6-lai-mc.png")
 
 # Compute LAI and 95% CI
 mc_lai_both %>% 
