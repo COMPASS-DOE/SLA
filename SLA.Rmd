@@ -13,10 +13,7 @@ To do:
 
 * Inventory data - why duplicate tree tag warnings?
 * Have consistent ordering for plots and salinity (low->high?)
-* SLA elevation differences - use type III
-* SLA salinity differences - type III / investigate
-* Run statistics on litter data (elevation, salinity)
-* Run statistics on LAI results
+* LAI numbers still seem really high
 * Comparison - pull MODIS LAI? Look at other studies as well
 
 ```{r setup, include=FALSE}
@@ -475,7 +472,7 @@ sla %>%
 mel_sp <- split(mel_sp, mel_sp$Species_code)
 ```
 
-As noted above, roughly 40% of our trees were shoreline, and the balance up-slope, away from Muddy Creek.
+As noted above, roughly 40% of our trees were shoreline, and the others up-slope, away from Muddy Creek.
 This elevation effect was marginally significant after accounting for species 
 (F[1,`r mel$Elevation$df`] = `r mel$Elevation$statistic`, 
 `r prettyp(mel$Elevation$p.value)`), and the interaction between species and elevation was significant
@@ -519,7 +516,7 @@ msa_sp <- split(msa_sp, msa_sp$Species_code)
 ```
 
 Our central hypothesis was that salinity exposure would consistently affect tree SLA.
-In an overall analysis of variance, this salinity effect was marginally significant after accounting for species 
+In an overall analysis of variance, this salinity effect was highly significant after accounting for species 
 (F[1,`r msa$Salinity$df`] = `r msa$Salinity$statistic`, 
 `r prettyp(msa$Salinity$p.value)`), but the interaction between species and salinity was not
 (F[1,`r msa$Interaction$df`] = `r msa$Interaction$statistic`, `r prettyp(msa$Interaction$p.value)`). 
@@ -678,6 +675,24 @@ litter_2019 %>%
             .groups = "drop") ->
   avg_litter
 
+# Data for reporting
+# Plot-level means
+avg_litter %>% 
+  group_by(Plot, Trap) %>% 
+  summarise(alm = sum(annual_litter_mass), .group = "drop_last") %>% 
+  summarise(alm_sd = sd(alm), alm = mean(alm)) ->
+  al_plot
+# Species shares
+avg_litter %>% 
+  group_by(Plot, Species_code) %>% 
+  summarise(alm = mean(annual_litter_mass), .groups = "drop_last") %>%
+  mutate(frac = alm / sum(alm)) %>% 
+  group_by(Species_code) %>% 
+  summarise(frac = mean(frac)) ->
+  al_species
+al_species <- split(al_species, al_species$Species_code)
+
+
 # bar graph 
 neon_md <- median(neon_litter$dryMass_m2)
 neon_sd <- sd(neon_litter$dryMass_m2)
@@ -701,6 +716,7 @@ litter_2019 %>%
   arrange(yearday) %>% 
   group_by(Plot, Species_code) %>% 
   mutate(cum_litter = cumsum(Value))  %>% 
+  # ...and plot
   ggplot(aes(yearday, cum_litter, fill = Species_code)) + 
   geom_area(position = "stack") + 
   facet_wrap(~Plot) +
@@ -762,6 +778,13 @@ print(litter_plot)
 save_plot("figures/fig6-litter.png", plot = litter_plot)
 
 ```
+
+Litter production peaked during the autumn in these northern temperate sites (**Figure 6**). Mean
+annual production was `r round(mean(al_plot$alm), 1)` g m^-2^, with an average spatial variability
+(i.e. between litter traps within a plot) of `r round(mean(al_plot$alm_sd), 1)` g m^-2^. These values 
+were consistent with data from the nearby NEON tower (**Figure 6**). Across all plots, 
+_Fagus grandifolia_ dominated, comprising `r round(al_species$FAGR$frac * 100, 0)`% of total mass.
+
 
 ## Leaf area index
 
@@ -889,11 +912,31 @@ mc_lai_both %>%
   transmute(Plot = Plot,
             LAI = round(LAI, 1),
             ci = paste0("(", format(lcl, digits = 1, nsmall = 1), ", ",
-                        format(ucl, digits = 1, nsmall = 1), ")")) %>% 
+                        format(ucl, digits = 1, nsmall = 1), ")")) ->
+  mc_lai_plot
+
+mc_lai_plot %>% 
+  filter(grepl("LE$", Plot)) ->
+  mc_lai_sal
+mc_lai_sal <- split(mc_lai_sal, mc_lai_sal$Plot)
+
+mc_lai_plot %>% 
   kable(digits = 1, format = "html",
         caption = paste0("Table 3: LAI median and 95% confidence intervals (N = ", MC_N, " draws)")) %>%  
   kable_styling(bootstrap_options = bo)
 ```
+
+Overall leaf area index (LAI, m2 m^-2^) inferred from the combination of SLA and litterfall data
+ranged from a value of `r min(mc_lai_plot$LAI)` 
+with a 95% confidence interval of `r mc_lai_plot$ci[which.min(mc_lai_plot$LAI)]`
+(in the high-elevation, medium-salinity "Canoe Shed" plot) to `r max(mc_lai_plot$LAI)`
+`r mc_lai_plot$ci[which.max(mc_lai_plot$LAI)]` (in the mid-elevation plot at the low-salinity 
+"North Branch" site). The low-elevation plots' LAI values were inversely related to their salinity
+exposure, with values from `r mc_lai_sal$HSLE$LAI` `r mc_lai_sal$HSLE$ci` to 
+`r mc_lai_sal$MSLE$LAI` `r mc_lai_sal$MSLE$ci` to `r mc_lai_sal$LSLE$LAI` `r mc_lai_sal$LSLE$ci` 
+at the lowest-salinity plot. 
+Spatial variability in leaf litter production contributed much more to the variability in LAI estimates
+than did variability in SLA measurements (**Figure 7**).
 
 # The End
 
