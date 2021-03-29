@@ -312,9 +312,10 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
 # Figure 1: SLA versus tree size by species
 sla %>%
   # Determine which relationships are significant or not
-  group_by(Species) %>% 
-  do(mod = lm(SLA ~ DBH, data = .)) %>% 
-  tidy(mod) ->
+  # Using new dplyr 1.0/broom 0.7 syntax   :(
+  nest_by(Species) %>% 
+  mutate(mod = list(lm(SLA ~ DBH, data = data))) %>% 
+  summarise(tidy(mod)) ->
   mod_signif_raw
 
 mod_signif_raw %>% 
@@ -458,9 +459,9 @@ sla %>%
   summarise(nel = length(unique(Elevation))) %>% 
   filter(nel > 1) %>% 
   left_join(sla, by = "Species") %>%
-  group_by(Species) %>% 
-  do(mod = lm(SLA ~ Elevation, data = .)) %>% 
-  tidy(mod) %>% 
+  nest_by(Species) %>% 
+  mutate(mod = list(lm(SLA ~ Elevation, data = data))) %>% 
+  summarise(tidy(mod)) %>% 
   filter(term != "(Intercept)") %>% 
   left_join(species_codes, by = "Species") ->
   mel_sp
@@ -501,9 +502,9 @@ msa <- split(msa, msa$term)  # for text printing below
 # Run for each species, grouping lower-salinity sites together
 sla_sal %>%
   mutate(Salinity2 = if_else(Salinity == "High", "High", "Low")) %>% 
-  group_by(Species) %>% 
-  do(mod = lm(SLA ~ Salinity2, data = .)) %>% 
-  tidy(mod) %>% 
+  nest_by(Species) %>% 
+  mutate(mod = list(lm(SLA ~ Salinity2, data = data))) %>% 
+  summarise(tidy(mod)) %>% 
   filter(term != "(Intercept)") %>% 
   left_join(species_codes, by = "Species") ->
   msa_sp
