@@ -81,7 +81,7 @@ SLA is the ratio between a leaf's one-sided fresh leaf area and its total dry ma
 ```{r read-sla}
 # Read in main data file and compute SLA
 read_csv("sla_data.csv", col_types = "ccccdcdddc") %>% 
-  mutate(specific_leaf_area = Leaf_Area_cm2 / Leaf_Mass_g) ->
+  mutate(SLA = Leaf_Area_cm2 / Leaf_Mass_g) ->
   sla_raw
 ```
 
@@ -200,8 +200,8 @@ sla %>%
 sla %>% 
   group_by(Species_code, Species) %>% 
   summarise(n = n(), 
-            mean_SLA = mean(specific_leaf_area) %>% round(1), 
-            sd_SLA = sd(specific_leaf_area),
+            mean_SLA = mean(SLA) %>% round(1), 
+            sd_SLA = sd(SLA),
             .groups = "drop") ->
   table1
 t1 <- split(table1, table1$Species_code)
@@ -217,8 +217,8 @@ table1 %>%
 # sla %>% 
 #   group_by(Species, Plot) %>% 
 #   summarise(n = n(), 
-#             mean_SLA = mean(specific_leaf_area), 
-#             sd_SLA = sd(specific_leaf_area),
+#             mean_SLA = mean(SLA), 
+#             sd_SLA = sd(SLA),
 #             .groups = "drop") %>% 
 #   kable(digits = 1, format = "html", 
 #         col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
@@ -229,8 +229,8 @@ table1 %>%
 sla %>% 
   group_by(Elevation) %>% 
   summarise(n = n(), 
-            mean_SLA = mean(specific_leaf_area), 
-            sd_SLA = sd(specific_leaf_area)) ->
+            mean_SLA = mean(SLA), 
+            sd_SLA = sd(SLA)) ->
   table_x3
 tx3 <- split(table_x3, table_x3$Elevation)
 
@@ -246,15 +246,15 @@ sla %>%
                               Position == "High/Sun" ~ "High")) %>% 
   group_by(Position) %>% 
   summarise(n = n(),
-            mean_SLA = mean(specific_leaf_area)) %>% 
+            mean_SLA = mean(SLA)) %>% 
   split(.$Position) ->
   table_x4
 
 sla %>%
   group_by(Species, Position) %>% 
   summarise(n = n(),
-            mean_SLA = mean(specific_leaf_area),
-            sd_SLA = sd(specific_leaf_area),
+            mean_SLA = mean(SLA),
+            sd_SLA = sd(SLA),
             .groups = "drop") %>% 
   kable(digits = 1, format = "html", 
         col.names = c("Species", "Canopy position", "N", "SLA", "s.d."), 
@@ -265,8 +265,8 @@ sla %>%
 sla %>%
   filter(!is.na(Salinity)) %>% 
   group_by(Species, Salinity) %>% 
-  summarise(mean_SLA = paste(round(mean(specific_leaf_area), digits = 1), "±",
-                             round(sd(specific_leaf_area), digits = 1),
+  summarise(mean_SLA = paste(round(mean(SLA), digits = 1), "±",
+                             round(sd(SLA), digits = 1),
                              paste0("(", n(), ")")),
             .groups = "drop") %>% 
   spread(Salinity, mean_SLA, fill = "") %>% 
@@ -289,7 +289,7 @@ changing salinity of Muddy Creek, while `r tx3$Upland$n` came from up-slope tree
 
 ```{r qc-plots, fig.show="hold", out.width="50%"}
 # Species histograms colored by canopy position 
-ggplot(sla, aes(x = specific_leaf_area, fill = Position)) + 
+ggplot(sla, aes(x = SLA, fill = Position)) + 
   geom_histogram(bins = 30) +
   facet_wrap(~Species)
 
@@ -313,7 +313,7 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
 sla %>%
   # Determine which relationships are significant or not
   group_by(Species) %>% 
-  do(mod = lm(specific_leaf_area ~ DBH, data = .)) %>% 
+  do(mod = lm(SLA ~ DBH, data = .)) %>% 
   tidy(mod) ->
   mod_signif_raw
 
@@ -332,7 +332,7 @@ mod_signif_raw %>%
 
 sla %>% 
   left_join(mod_signif, by = "Species") %>% 
-  ggplot(aes(DBH, specific_leaf_area)) +
+  ggplot(aes(DBH, SLA)) +
   geom_point() + 
   facet_wrap(~Species) +
   geom_smooth(method = "lm", formula = y ~ x, 
@@ -371,13 +371,13 @@ sla %>%
 
 ```{r stats-species}
 # SLA by species and canopy position
-ggplot(sla_figs, aes(Species, specific_leaf_area)) +
+ggplot(sla_figs, aes(Species, SLA)) +
   geom_boxplot(aes(fill = Position)) +
   labs(x = "Species", y = expression(SLA~(cm^2~g^-1))) +
   theme(axis.text.x = element_text(size = 8))
 
 # Does SLA differ between species? Tukey HSD test (from agricolae package for group labeling)
-m_species <- aov(specific_leaf_area ~ Species_code * Position, data = sla)
+m_species <- aov(SLA ~ Species_code * Position, data = sla)
 print(summary(m_species))
 msp <- tidy(m_species) %>% 
   mutate(statistic = round(statistic, 3),
@@ -385,25 +385,25 @@ msp <- tidy(m_species) %>%
 msp <- split(msp, msp$term)  # for text printing below
 
 effect <- with(sla, interaction(Species_code, Position))
-hsd_species <- HSD.test(aov(specific_leaf_area ~ effect, data = sla),
+hsd_species <- HSD.test(aov(SLA ~ effect, data = sla),
                         "effect", group = TRUE, unbalanced = TRUE, console = TRUE)
 
 # Make a nice plot
 sla %>%
   group_by(Species_code, Position) %>% 
-  summarise(sd_sla = sd(specific_leaf_area), .groups = "drop") ->
+  summarise(sd_sla = sd(SLA), .groups = "drop") ->
   xx
 
 hsd_species$groups %>% 
   mutate(species = rownames(hsd_species$groups)) %>% 
   separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>% 
-  mutate(species = forcats::fct_reorder(species, specific_leaf_area)) %>% 
+  mutate(species = forcats::fct_reorder(species, SLA)) %>% 
   left_join(xx, by = c("Species_code", "Position")) ->
   species_position
 
 species_position %>% 
-  ggplot(aes(species, specific_leaf_area, fill = Position)) + geom_col() +
-  geom_errorbar(aes(ymin = specific_leaf_area - sd_sla, ymax = specific_leaf_area + sd_sla), alpha = 0.33) +
+  ggplot(aes(species, SLA, fill = Position)) + geom_col() +
+  geom_errorbar(aes(ymin = SLA - sd_sla, ymax = SLA + sd_sla), alpha = 0.33) +
   geom_text(aes(label = groups), vjust = -1) + 
   scale_x_discrete("Species", labels = species_position$Species_code) +
   ylab(expression(SLA~(cm^2~g^-1))) +
@@ -416,8 +416,8 @@ ggsave("figures/fig3-species_position.png")
 sla %>% 
   # Some trees were sampled more than once. Just look at earlier samples for simplicity
   filter(mdy(Date) < mdy("8/1/2019")) %>% 
-  select(Plot, Species_common, DBH, Tag, Position, specific_leaf_area) %>% 
-  spread(Position, specific_leaf_area) -> 
+  select(Plot, Species_common, DBH, Tag, Position, SLA) %>% 
+  spread(Position, SLA) -> 
   sla_position
 
 tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
@@ -439,13 +439,13 @@ high-position (sun) leaves tended to have significantly lower SLA than low (shad
 
 ```{r stats-elevation}
 # SLA by elevation
-ggplot(sla_figs, aes(Species, specific_leaf_area)) +
+ggplot(sla_figs, aes(Species, SLA)) +
   geom_boxplot(aes(fill = Elevation)) + 
   labs(x = "Species", y = expression(SLA~(cm^2~g^-1))) +
   theme(axis.text.x = element_text(size = 8))
 
 # Does SLA differ between elevations after accounting for species?
-m_elevation <- aov(specific_leaf_area ~ Species_code * Elevation, data = sla)
+m_elevation <- aov(SLA ~ Species_code * Elevation, data = sla)
 print(summary(m_elevation))
 mel <- tidy(m_elevation) %>% 
   mutate(statistic = round(statistic, 3),
@@ -459,7 +459,7 @@ sla %>%
   filter(nel > 1) %>% 
   left_join(sla, by = "Species") %>%
   group_by(Species) %>% 
-  do(mod = lm(specific_leaf_area ~ Elevation, data = .)) %>% 
+  do(mod = lm(SLA ~ Elevation, data = .)) %>% 
   tidy(mod) %>% 
   filter(term != "(Intercept)") %>% 
   left_join(species_codes, by = "Species") ->
@@ -483,7 +483,7 @@ _Liquidambar styraciflua_ (`r prettyp(mel_sp$LIST$p.value)`).
 ```{r stats-salinity}
 sla_sal <- filter(sla, Elevation == "Shoreline")
 
-ggplot(filter(sla_sal, Elevation == "Shoreline"), aes(Salinity, specific_leaf_area)) +
+ggplot(filter(sla_sal, Elevation == "Shoreline"), aes(Salinity, SLA)) +
   geom_boxplot() +
   facet_wrap(~Species) +
   ylab(expression(SLA~(cm^2~g^-1))) +
@@ -491,7 +491,7 @@ ggplot(filter(sla_sal, Elevation == "Shoreline"), aes(Salinity, specific_leaf_ar
 ggsave("figures/fig4_salinity.png")
 
 # Does SLA differ between elevations after accounting for species?
-m_salinity <- aov(specific_leaf_area ~ Species_code * Salinity, data = sla_sal)
+m_salinity <- aov(SLA ~ Species_code * Salinity, data = sla_sal)
 print(summary(m_salinity))
 msa <- tidy(m_salinity) %>% 
   mutate(statistic = round(statistic, 3),
@@ -502,7 +502,7 @@ msa <- split(msa, msa$term)  # for text printing below
 sla_sal %>%
   mutate(Salinity2 = if_else(Salinity == "High", "High", "Low")) %>% 
   group_by(Species) %>% 
-  do(mod = lm(specific_leaf_area ~ Salinity2, data = .)) %>% 
+  do(mod = lm(SLA ~ Salinity2, data = .)) %>% 
   tidy(mod) %>% 
   filter(term != "(Intercept)") %>% 
   left_join(species_codes, by = "Species") ->
@@ -545,7 +545,7 @@ textConnection(trydata) %>%
 # Test for distribution differences
 ks_results <- list()
 for(sp in unique(sla$Species)) {
-  x <- filter(sla, Species == sp)$specific_leaf_area
+  x <- filter(sla, Species == sp)$SLA
   y <- filter(trydata, Species == sp)$SLA
   if(length(x) > 5 && length(y) > 5) {
     ks <- ks.test(x, y, alternative = "two.sided", exact = NULL)
@@ -566,7 +566,7 @@ try_tests %>%
   kable_styling(bootstrap_options = bo)
 
 sla %>% 
-  select(Species_common, Species, SLA = specific_leaf_area) %>% 
+  select(Species_common, Species, SLA = SLA) %>% 
   mutate(Source = "This study") %>% 
   bind_rows(trydata) %>% 
   filter(SLA < 600) ->
@@ -790,8 +790,8 @@ _Fagus grandifolia_ dominated, comprising `r round(al_species$FAGR$frac * 100, 0
 
 sla %>% 
   group_by(Plot, Species_code) %>% 
-  summarise(avg_sla = mean(specific_leaf_area),
-            sd_sla = sd(specific_leaf_area),
+  summarise(avg_sla = mean(SLA),
+            sd_sla = sd(SLA),
             .groups = "drop") ->
   sla_for_lai
 
