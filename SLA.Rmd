@@ -33,6 +33,10 @@ library(ggmap)
 library(agricolae)
 library(broom)
 
+# The nest_by() ... mutate() ... summarise() syntax needs:
+stopifnot(packageVersion("dplyr") > 1.0)
+stopifnot(packageVersion("broom") > 0.7)
+
 ggsave <- function(...) suppressMessages(ggplot2::ggsave(...))
 
 prettyp <- function(p.value) {
