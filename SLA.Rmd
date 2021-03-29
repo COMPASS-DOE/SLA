@@ -62,7 +62,7 @@ ggmap(sites_map) +
   geom_text(data = sites, 
             aes(x = Longitude, y = Latitude, label = Plot), 
             size = 3, vjust = 2) +
-  # coordinates from https://www.neonscience.org/field-sites/serc
+  # Tower coordinates from https://www.neonscience.org/field-sites/serc
   annotate(geom = "point", x = -76.560014, y = 38.890131, size = 1) +
   annotate(geom = "text", x = -76.560014, y = 38.890131, label = "NEON Tower", size = 2.5, vjust = -1) +
   labs(x = "Longitude", y = "Latitude") +
@@ -132,9 +132,6 @@ sla_raw %>%
 
 n_sla_premerge <- nrow(sla_raw)
 n_sla_joined <- nrow(sla_joined)
-
-message("Rows in sla_calc: ", n_sla_premerge)
-message("Rows in sla_joined: ", n_sla_joined)
 if(n_sla_joined != n_sla_premerge) {
   stop("We have a problem!\n")
 }
@@ -321,8 +318,7 @@ sla %>%
   mod_signif_raw
 
 mod_signif_raw %>% 
-  kable(digits = 1, format = "html",
-        caption = "DBH vs. SLA models") %>% 
+  kable(digits = 1, format = "html", caption = "DBH vs. SLA models") %>% 
   kable_styling(bootstrap_options = bo)
 
 mod_signif_raw %>% 
