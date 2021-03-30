@@ -279,12 +279,13 @@ sla %>%
   kable_styling(bootstrap_options = bo)
 ```
 
-In total, we obtained a total of `r nrow(sla)` SLA samples, each consisting of on average six
+In total, we measured SLA for a total of `r nrow(sla)` samples, each consisting of on average six
 leaves (with a minimum of `r ceiling(min(sla$n_Leaves))` and a maximum of `r max(sla$n_Leaves)`).
 The seven tree species sampled ranged from _Carya glabra_ (N = `r t1$CAGL$n`, mean SLA = 
 `r t1$CAGL$mean_SLA`) to _Fagus grandifolia_ (N = `r t1$FAGR$n`, SLA = `r t1$FAGR$mean_SLA`) (**Table 1**).
-This was a mature and thus tall deciduous forest: we obtained `r table_x4$Low$n` samples from low height, 
-and were shade leaves in the canopy, while `r table_x4$High$n` were from high sun leaves.
+Accessing the upper canopy of this tall deciduous forest was difficult: we obtained
+`r table_x4$Low$n` samples from low height, i.e. from shade leaves, 
+but only `r table_x4$High$n` from high sun leaves.
 Across all our SLA samples, `r tx3$Shoreline$n` were from shoreline trees directly exposed to the
 changing salinity of Muddy Creek, while `r tx3$Upland$n` came from up-slope trees.
 
@@ -516,7 +517,8 @@ msa_sp <- split(msa_sp, msa_sp$Species_code)
 ```
 
 Our central hypothesis was that salinity exposure would consistently affect tree SLA.
-In an overall analysis of variance, this salinity effect was highly significant after accounting for species 
+In an overall analysis of variance on the subset of trees occurring directly by the creek (N = `r nrow(sla_sal)`),
+this salinity effect was highly significant after accounting for species 
 (F[1,`r msa$Salinity$df`] = `r msa$Salinity$statistic`, 
 `r prettyp(msa$Salinity$p.value)`), but the interaction between species and salinity was not
 (F[1,`r msa$Interaction$df`] = `r msa$Interaction$statistic`, `r prettyp(msa$Interaction$p.value)`). 
