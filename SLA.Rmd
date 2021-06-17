@@ -148,7 +148,7 @@ sla_joined <- sla_joined %>%
          Species_code = if_else(is.na(Species_code), No_Tag_Species_code, Species_code),
          Plot = if_else(is.na(Plot), No_Tag_Plot, Plot)) %>% 
   # We only want four letter species codes, and want to add an elevation column 
-  mutate(Species_code = substr(Species_code, 1,4), 
+  mutate(Species_code = substr(Species_code, 1, 4), 
          Elevation = if_else(Plot %in% shoreline_plots, "Shoreline", "Upland")) 
 n_sla_joined <- nrow(sla_joined)
 
@@ -234,7 +234,8 @@ sla %>%
   group_by(Elevation) %>% 
   summarise(n = n(), 
             mean_SLA = mean(SLA), 
-            sd_SLA = sd(SLA)) ->
+            sd_SLA = sd(SLA),
+            .groups = "drop") ->
   table_x3
 tx3 <- split(table_x3, table_x3$Elevation)
 
@@ -250,7 +251,8 @@ sla %>%
                               Position == "High/Sun" ~ "High")) %>% 
   group_by(Position) %>% 
   summarise(n = n(),
-            mean_SLA = mean(SLA)) %>% 
+            mean_SLA = mean(SLA),
+            .groups = "drop") %>% 
   split(.$Position) ->
   table_x4
 
@@ -320,7 +322,8 @@ sla %>%
   # Using new dplyr 1.0/broom 0.7 syntax   :(
   nest_by(Species) %>% 
   mutate(mod = list(lm(SLA ~ DBH, data = data))) %>% 
-  summarise(tidy(mod)) ->
+  summarise(tidy(mod),
+            .groups = "drop") ->
   mod_signif_raw
 
 mod_signif_raw %>% 
@@ -368,6 +371,7 @@ Two species exhibited strong negative relationships between tree diameter (cm) a
 ## Statistics {.tabset}
 
 ```{r stats-prep}
+# Add a line break in Species field for prettier axis labels
 sla %>% 
   mutate(Species = gsub(" ", "\n", Species)) ->
   sla_figs
@@ -430,16 +434,21 @@ tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired 
 print(tt_position)
 ```
 
-In a linear model with species and canopy position as interacting terms predicting SLA, both terms
-were highly significant: species (F[1,`r msp$Species_code$df`] = `r msp$Species_code$statistic`, 
-`r prettyp(msp$Species_code$p.value)`) and position (F[1,`r msp$Position$df`] = `r msp$Position$statistic`, 
-`r prettyp(msp$Position$p.value)`); their interaction was not (F[1,`r msp$Interaction$df`] =
-`r msp$Interaction$statistic`, `r prettyp(msp$Interaction$p.value)`). A Tukey's HSD test categorized
-the SLA values in this model into five groups, summarized visually in **Figure 3**. Because 
-high- and low-canopy samples were frequently taken from common trees, we also used a paired T-test to
-examine the effect of canopy position. This was also highly significant (T[`r tt_position$parameter`] = 
-`r round(tt_position$statistic, 3)`, `r prettyp(tt_position$p.value)`), indicating, as expected, that
-high-position (sun) leaves tended to have significantly lower SLA than low (shade) leaves.
+In a linear model with species and canopy position as interacting terms 
+predicting SLA, both terms were highly significant: 
+species (F[1,`r msp$Species_code$df`] = `r msp$Species_code$statistic`, 
+`r prettyp(msp$Species_code$p.value)`) 
+and position (F[1,`r msp$Position$df`] = `r msp$Position$statistic`, `r prettyp(msp$Position$p.value)`); 
+their interaction was not (F[1,`r msp$Interaction$df`] =
+`r msp$Interaction$statistic`, `r prettyp(msp$Interaction$p.value)`). 
+A Tukey's HSD test categorized the SLA values in this model into five groups, 
+summarized visually in **Figure 3**. 
+Because high- and low-canopy samples were frequently taken from common trees, 
+we also used a paired T-test to examine the effect of canopy position. 
+This was also highly significant (T[`r tt_position$parameter`] = 
+`r round(tt_position$statistic, 3)`, `r prettyp(tt_position$p.value)`), 
+indicating, as expected, that high-position (sun) leaves tended to have 
+significantly lower SLA than low (shade) leaves.
 
 ### Elevation differences
 
@@ -480,9 +489,9 @@ This elevation effect was marginally significant after accounting for species
 (F[1,`r mel$Interaction$df`] = `r mel$Interaction$statistic`, `r prettyp(mel$Interaction$p.value)`). 
 Of the five species that occurred at both low and higher elevations, this effect on SLA
 was highly significant for _Quercus alba_ (`r prettyp(mel_sp$QUAL$p.value)`),
-significant (0.01 < P < 0.05) for _Nyssa sylvatica_ and _Acer rubrum_, marginally significant
-(`r prettyp(mel_sp$FAGR$p.value)`) for _Fagus grandifolia_, and not significant for 
-_Liquidambar styraciflua_ (`r prettyp(mel_sp$LIST$p.value)`).
+significant (0.01 < P < 0.05) for _Nyssa sylvatica_ and _Acer rubrum_, 
+marginally significant (`r prettyp(mel_sp$FAGR$p.value)`) for _Fagus grandifolia_, 
+and not significant for _Liquidambar styraciflua_ (`r prettyp(mel_sp$LIST$p.value)`).
 
 ### Salinity differences
 
@@ -695,7 +704,6 @@ avg_litter %>%
   al_species
 al_species <- split(al_species, al_species$Species_code)
 
-
 # bar graph 
 neon_md <- median(neon_litter$dryMass_m2)
 neon_sd <- sd(neon_litter$dryMass_m2)
@@ -782,19 +790,21 @@ save_plot("figures/fig6-litter.png", plot = litter_plot)
 
 ```
 
-Litter production peaked during the autumn in these northern temperate sites (**Figure 6**). Mean
-annual production was `r round(mean(al_plot$alm), 1)` g m^-2^, with an average spatial variability
-(i.e. between litter traps within a plot) of `r round(mean(al_plot$alm_sd), 1)` g m^-2^. These values 
-were consistent with data from the nearby NEON tower (**Figure 6**). Across all plots, 
-_Fagus grandifolia_ dominated, comprising `r round(al_species$FAGR$frac * 100, 0)`% of total mass.
+Litter production peaked during the autumn in these northern temperate sites (**Figure 6**). 
+Mean annual production was `r round(mean(al_plot$alm), 1)` g m^-2^, with an 
+average spatial variability (i.e. between litter traps within a plot) of 
+`r round(mean(al_plot$alm_sd), 1)` g m^-2^. 
+These values were consistent with data from the nearby NEON tower (**Figure 6**). 
+Across all plots, _Fagus grandifolia_ dominated, comprising 
+`r round(al_species$FAGR$frac * 100, 0)`% of total mass.
 
 
 ## Leaf area index
 
+Estimate LAI for all plots and examine sources of uncertainty in our estimate.
+
 ```{r lai}
-
 # Join litter data with SLA data 
-
 sla %>% 
   group_by(Plot, Species_code) %>% 
   summarise(avg_sla = mean(SLA),
@@ -929,17 +939,18 @@ mc_lai_plot %>%
   kable_styling(bootstrap_options = bo)
 ```
 
-Overall leaf area index (LAI, m2 m^-2^) inferred from the combination of SLA and litterfall data
-ranged from `r min(mc_lai_plot$LAI)` 
+Overall leaf area index (LAI, m2 m^-2^) inferred from the combination of SLA 
+and litterfall data ranged from `r min(mc_lai_plot$LAI)` 
 with a 95% confidence interval of `r mc_lai_plot$ci[which.min(mc_lai_plot$LAI)]`
 (in the high-elevation, medium-salinity "Canoe Shed" plot) to `r max(mc_lai_plot$LAI)`
 `r mc_lai_plot$ci[which.max(mc_lai_plot$LAI)]` (in the mid-elevation plot at the low-salinity 
-"North Branch" site). The low-elevation plots' LAI values were inversely related to their salinity
-exposure, with values from `r mc_lai_sal$HSLE$LAI` `r mc_lai_sal$HSLE$ci` at the high-salinity site,
-to `r mc_lai_sal$MSLE$LAI` `r mc_lai_sal$MSLE$ci`,
+"North Branch" site). 
+The low-elevation plots' LAI values were inversely related to their salinity
+exposure, with values from `r mc_lai_sal$HSLE$LAI` `r mc_lai_sal$HSLE$ci` at 
+the high-salinity site, to `r mc_lai_sal$MSLE$LAI` `r mc_lai_sal$MSLE$ci`,
 to `r mc_lai_sal$LSLE$LAI` `r mc_lai_sal$LSLE$ci` at the lowest-salinity plot. 
-Spatial variability in leaf litter production contributed much more to the uncertainty in LAI 
-estimates than did variability in the SLA measurements (**Figure 7**).
+Spatial variability in leaf litter production contributed much more to the uncertainty 
+in LAI estimates than did variability in the SLA measurements (**Figure 7**).
 
 # The End
 
