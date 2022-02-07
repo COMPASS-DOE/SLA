@@ -61,11 +61,15 @@ sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
 sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
 
 ggmap(sites_map) +
-  geom_point(data = sites, 
-             aes(x = Longitude, y = Latitude), color = "black", size = 1) +
-  geom_text(data = sites, 
-            aes(x = Longitude, y = Latitude, label = Plot), 
-            size = 3, vjust = 2) +
+  geom_point(
+    data = sites,
+    aes(x = Longitude, y = Latitude), color = "black", size = 1
+  ) +
+  geom_text(
+    data = sites,
+    aes(x = Longitude, y = Latitude, label = Plot),
+    size = 3, vjust = 2
+  ) +
   # Tower coordinates from https://www.neonscience.org/field-sites/serc
   annotate(geom = "point", x = -76.560014, y = 38.890131, size = 1) +
   annotate(geom = "text", x = -76.560014, y = 38.890131, label = "NEON Tower", size = 2.5, vjust = -1) +
@@ -84,44 +88,51 @@ SLA is the ratio between a leaf's one-sided fresh leaf area and its total dry ma
 
 ```{r read-sla}
 # Read in main data file and compute SLA
-read_csv("sla_data.csv", col_types = "ccccdcdddc") %>% 
+read_csv("sla_data.csv", col_types = "ccccdcdddc") %>%
   mutate(SLA = Leaf_Area_cm2 / Leaf_Mass_g) ->
-  sla_raw
+sla_raw
 ```
 
 ## Inventory Data
 
 ```{r read-inventory}
-## Read in the TEMPEST inventory data 
+## Read in the TEMPEST inventory data
 # This doesn't include the shore plot at GCREW!
 tempest_inventory <- read_csv("inventory/tempest-inventory.csv", col_types = "c-cd-c----")
 
-if(any(duplicated(tempest_inventory$Tag))) {
-  warning("We have duplicate tree tags in TEMPEST inventory: ",
-          paste(which(duplicated(tempest_inventory$Tag)), collapse = ", "))
+if (any(duplicated(tempest_inventory$Tag))) {
+  warning(
+    "We have duplicate tree tags in TEMPEST inventory: ",
+    paste(which(duplicated(tempest_inventory$Tag)), collapse = ", ")
+  )
 }
 
 # Read in transplant inventory data
 transplant_inventory <- read_csv("inventory/transplant-inventory.csv",
-                                 col_types = "-cc-c---d--c") %>% 
+  col_types = "-cc-c---d--c"
+) %>%
   select(Plot, Tag, Species_code, DBH = DBH_cm_2019, Notes)
 
 # Check that no tag numbers are duplicated
-if(any(duplicated(transplant_inventory$Tag))) {
-  warning("We have duplicate tree tags in transplant inventory: ",
-          paste(which(duplicated(transplant_inventory$Tag)), collapse = ", "))
+if (any(duplicated(transplant_inventory$Tag))) {
+  warning(
+    "We have duplicate tree tags in transplant inventory: ",
+    paste(which(duplicated(transplant_inventory$Tag)), collapse = ", ")
+  )
 }
 
 # Combine storm surge inventory with transplant inventory
-bind_rows(transplant_inventory, tempest_inventory) %>% 
+bind_rows(transplant_inventory, tempest_inventory) %>%
   filter(!is.na(Tag)) ->
-  inventory
+inventory
 
 # Check that no tag numbers are duplicated
 # This is DEFENSIVE PROGRAMMING
-if(any(duplicated(inventory$Tag))) {
-  warning("We have duplicate tree tags in the combined inventory: ",
-          paste(which(duplicated(inventory$Tag)), collapse = ", "))
+if (any(duplicated(inventory$Tag))) {
+  warning(
+    "We have duplicate tree tags in the combined inventory: ",
+    paste(which(duplicated(inventory$Tag)), collapse = ", ")
+  )
 }
 ```
 
@@ -130,46 +141,50 @@ if(any(duplicated(inventory$Tag))) {
 ```{r join-sla-inventory, error = FALSE}
 sla_raw %>%
   # Make blank Tag values NAs to stop duplicates when joining
-  mutate(Tag = if_else(Tag == "", NA_character_, Tag)) %>% 
+  mutate(Tag = if_else(Tag == "", NA_character_, Tag)) %>%
   left_join(inventory, by = "Tag") ->
-  sla_joined
+sla_joined
 
 n_sla_premerge <- nrow(sla_raw)
 n_sla_joined <- nrow(sla_joined)
-if(n_sla_joined != n_sla_premerge) {
+if (n_sla_joined != n_sla_premerge) {
   stop("We have a problem!\n")
 }
 
 shoreline_plots <- c("Shore", "HSLE", "MSLE", "LSLE")
 
-sla_joined <- sla_joined %>% 
+sla_joined <- sla_joined %>%
   # if NA DBH, then get information from what we measured in field
-  mutate(DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
-         Species_code = if_else(is.na(Species_code), No_Tag_Species_code, Species_code),
-         Plot = if_else(is.na(Plot), No_Tag_Plot, Plot)) %>% 
-  # We only want four letter species codes, and want to add an elevation column 
-  mutate(Species_code = substr(Species_code, 1, 4), 
-         Elevation = if_else(Plot %in% shoreline_plots, "Shoreline", "Upland")) 
+  mutate(
+    DBH = if_else(is.na(DBH), No_Tag_DBH, DBH),
+    Species_code = if_else(is.na(Species_code), No_Tag_Species_code, Species_code),
+    Plot = if_else(is.na(Plot), No_Tag_Plot, Plot)
+  ) %>%
+  # We only want four letter species codes, and want to add an elevation column
+  mutate(
+    Species_code = substr(Species_code, 1, 4),
+    Elevation = if_else(Plot %in% shoreline_plots, "Shoreline", "Upland")
+  )
 n_sla_joined <- nrow(sla_joined)
 
 # At this point, everything should have a DBH entry
-if(any(is.na(sla_joined$DBH))) {
-  warning("Missing DBH!\n") 
+if (any(is.na(sla_joined$DBH))) {
+  warning("Missing DBH!\n")
   paste("Tag:", sla_joined$Tag[which(is.na(sla_joined$DBH))])
-}   
+}
 
 # Filter for ACRU, FAGR, LIST, NYSY, QUAL, LITU; others (CA?? and COFL and <= 2)
-sla_joined_simple <- sla_joined %>% 
+sla_joined_simple <- sla_joined %>%
   filter(Species_code %in% c("ACRU", "FAGR", "LIST", "NYSY", "QUAL", "LITU", "CAGL"))
 
 # At this point there should be NO data with an NA for Plot or DBH or Species_code
 # Warn if this occurs
-if(any(is.na(sla_joined_simple$DBH))) {
+if (any(is.na(sla_joined_simple$DBH))) {
   warning("We still have unmatched trees!\n")
   paste("Tag:", sla_joined_simple$Tag[which(is.na(sla_joined_simple$DBH))])
 }
-if(any(sla_joined_simple$Species_code == "")) {
-  warning("We have blank species codes!")  
+if (any(sla_joined_simple$Species_code == "")) {
+  warning("We have blank species codes!")
 }
 
 ## Join sla_joined_simple with plot species_codes
@@ -181,18 +196,20 @@ n_sla_joined_simple <- nrow(sla_joined_simple)
 n_sla <- nrow(sla)
 message("Rows in sla_joined_simple: ", n_sla_joined_simple)
 message("Rows in sla: ", n_sla)
-if(n_sla_joined_simple != n_sla) {
+if (n_sla_joined_simple != n_sla) {
   warning("We have a problem!\n")
 }
 
-## Add salinity information 
-salinities <- tibble(Plot = shoreline_plots, 
-                     Salinity = c("High", "High", "Medium", "Low"))
-sla %>% 
-  left_join(salinities, by = "Plot") %>% 
-  mutate(Salinity = factor(Salinity, levels = c("Low", "Medium", "High"))) %>% 
+## Add salinity information
+salinities <- tibble(
+  Plot = shoreline_plots,
+  Salinity = c("High", "High", "Medium", "Low")
+)
+sla %>%
+  left_join(salinities, by = "Plot") %>%
+  mutate(Salinity = factor(Salinity, levels = c("Low", "Medium", "High"))) %>%
   select(-starts_with("No_"), Notes.x, Notes.y) ->
-  sla
+sla
 ```
 
 # Results
@@ -201,83 +218,105 @@ sla %>%
 
 ```{r summary-tables}
 # Table 1: SLA by species
-sla %>% 
-  group_by(Species_code, Species) %>% 
-  summarise(n = n(), 
-            mean_SLA = mean(SLA) %>% round(1), 
-            sd_SLA = sd(SLA),
-            .groups = "drop") ->
-  table1
+sla %>%
+  group_by(Species_code, Species) %>%
+  summarise(
+    n = n(),
+    mean_SLA = mean(SLA) %>% round(1),
+    sd_SLA = sd(SLA),
+    .groups = "drop"
+  ) ->
+table1
 t1 <- split(table1, table1$Species_code)
 
-table1 %>% 
-  select(-Species_code) %>% 
-  kable(digits = 1, format = "html", 
-        col.names = c("Species", "N", "SLA", "s.d."), 
-        caption = "Table 1: Specific leaf area by species") %>% 
+table1 %>%
+  select(-Species_code) %>%
+  kable(
+    digits = 1, format = "html",
+    col.names = c("Species", "N", "SLA", "s.d."),
+    caption = "Table 1: Specific leaf area by species"
+  ) %>%
   kable_styling(bootstrap_options = bo)
 
 # Table x2: SLA by species and plot
-# sla %>% 
-#   group_by(Species, Plot) %>% 
-#   summarise(n = n(), 
-#             mean_SLA = mean(SLA), 
+# sla %>%
+#   group_by(Species, Plot) %>%
+#   summarise(n = n(),
+#             mean_SLA = mean(SLA),
 #             sd_SLA = sd(SLA),
-#             .groups = "drop") %>% 
-#   kable(digits = 1, format = "html", 
-#         col.names = c("Species", "Plot", "N", "SLA", "s.d."), 
-#         caption = "Table x2: Specific leaf area by plot") %>% 
+#             .groups = "drop") %>%
+#   kable(digits = 1, format = "html",
+#         col.names = c("Species", "Plot", "N", "SLA", "s.d."),
+#         caption = "Table x2: Specific leaf area by plot") %>%
 #   kable_styling(bootstrap_options = bo)
 
 # Table x3: SLA by elevation
-sla %>% 
-  group_by(Elevation) %>% 
-  summarise(n = n(), 
-            mean_SLA = mean(SLA), 
-            sd_SLA = sd(SLA),
-            .groups = "drop") ->
-  table_x3
+sla %>%
+  group_by(Elevation) %>%
+  summarise(
+    n = n(),
+    mean_SLA = mean(SLA),
+    sd_SLA = sd(SLA),
+    .groups = "drop"
+  ) ->
+table_x3
 tx3 <- split(table_x3, table_x3$Elevation)
 
-table_x3 %>% 
-  kable(digits = 1, format = "html", 
-        col.names = c("Elevation", "N", "SLA", "s.d."),
-        caption = "Table x3: Specific leaf area by elevation") %>% 
+table_x3 %>%
+  kable(
+    digits = 1, format = "html",
+    col.names = c("Elevation", "N", "SLA", "s.d."),
+    caption = "Table x3: Specific leaf area by elevation"
+  ) %>%
   kable_styling(bootstrap_options = bo)
 
 # Table x4: SLA canopy position
 sla %>%
-  mutate(Position = case_when(Position == "Low/Shade" ~ "Low", 
-                              Position == "High/Sun" ~ "High")) %>% 
-  group_by(Position) %>% 
-  summarise(n = n(),
-            mean_SLA = mean(SLA),
-            .groups = "drop") %>% 
+  mutate(Position = case_when(
+    Position == "Low/Shade" ~ "Low",
+    Position == "High/Sun" ~ "High"
+  )) %>%
+  group_by(Position) %>%
+  summarise(
+    n = n(),
+    mean_SLA = mean(SLA),
+    .groups = "drop"
+  ) %>%
   split(.$Position) ->
-  table_x4
+table_x4
 
 sla %>%
-  group_by(Species, Position) %>% 
-  summarise(n = n(),
-            mean_SLA = mean(SLA),
-            sd_SLA = sd(SLA),
-            .groups = "drop") %>% 
-  kable(digits = 1, format = "html", 
-        col.names = c("Species", "Canopy position", "N", "SLA", "s.d."), 
-        caption = "Table x4: Specific leaf area by canopy position") %>% 
+  group_by(Species, Position) %>%
+  summarise(
+    n = n(),
+    mean_SLA = mean(SLA),
+    sd_SLA = sd(SLA),
+    .groups = "drop"
+  ) %>%
+  kable(
+    digits = 1, format = "html",
+    col.names = c("Species", "Canopy position", "N", "SLA", "s.d."),
+    caption = "Table x4: Specific leaf area by canopy position"
+  ) %>%
   kable_styling(bootstrap_options = bo)
 
 # Table 2: SLA along salinity gradient
 sla %>%
-  filter(!is.na(Salinity)) %>% 
-  group_by(Species, Salinity) %>% 
-  summarise(mean_SLA = paste(round(mean(SLA), digits = 1), "±",
-                             round(sd(SLA), digits = 1),
-                             paste0("(", n(), ")")),
-            .groups = "drop") %>% 
-  spread(Salinity, mean_SLA, fill = "") %>% 
-  kable(digits = 1, format = "html",
-        caption = "Table 2: Specific leaf area (cm2/g) along salinity gradient") %>% 
+  filter(!is.na(Salinity)) %>%
+  group_by(Species, Salinity) %>%
+  summarise(
+    mean_SLA = paste(
+      round(mean(SLA), digits = 1), "±",
+      round(sd(SLA), digits = 1),
+      paste0("(", n(), ")")
+    ),
+    .groups = "drop"
+  ) %>%
+  spread(Salinity, mean_SLA, fill = "") %>%
+  kable(
+    digits = 1, format = "html",
+    caption = "Table 2: Specific leaf area (cm2/g) along salinity gradient"
+  ) %>%
   kable_styling(bootstrap_options = bo)
 ```
 
@@ -295,8 +334,8 @@ changing salinity of Muddy Creek, while `r tx3$Upland$n` came from up-slope tree
 ## Quality control plots
 
 ```{r qc-plots, fig.show="hold", out.width="50%"}
-# Species histograms colored by canopy position 
-ggplot(sla, aes(x = SLA, fill = Position)) + 
+# Species histograms colored by canopy position
+ggplot(sla, aes(x = SLA, fill = Position)) +
   geom_histogram(bins = 30) +
   facet_wrap(~Species)
 
@@ -304,7 +343,7 @@ ggplot(sla, aes(x = SLA, fill = Position)) +
 ggplot(sla, aes(n_Leaves, Leaf_Area_cm2, color = Species_code)) +
   geom_point() +
   facet_wrap(~Species_code, scales = "free") +
-  geom_smooth(method = "lm", formula = y ~ x) 
+  geom_smooth(method = "lm", formula = y ~ x)
 
 ## leaves vs mass
 ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
@@ -320,46 +359,52 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
 sla %>%
   # Determine which relationships are significant or not
   # Using new dplyr 1.0/broom 0.7 syntax   :(
-  nest_by(Species) %>% 
-  mutate(mod = list(lm(SLA ~ DBH, data = data))) %>% 
+  nest_by(Species) %>%
+  mutate(mod = list(lm(SLA ~ DBH, data = data))) %>%
   summarise(tidy(mod),
-            .groups = "drop") ->
-  mod_signif_raw
+    .groups = "drop"
+  ) ->
+mod_signif_raw
 
-mod_signif_raw %>% 
-  kable(digits = 1, format = "html", caption = "DBH vs. SLA models") %>% 
+mod_signif_raw %>%
+  kable(digits = 1, format = "html", caption = "DBH vs. SLA models") %>%
   kable_styling(bootstrap_options = bo)
 
-mod_signif_raw %>% 
-  filter(term == "DBH") %>% 
-  ungroup() %>% 
+mod_signif_raw %>%
+  filter(term == "DBH") %>%
+  ungroup() %>%
   transmute(Species,
-            p.value = round(p.value, 3),
-            p_pretty = prettyp(p.value),
-            notsignif = p.value >= 0.05) ->
-  mod_signif
+    p.value = round(p.value, 3),
+    p_pretty = prettyp(p.value),
+    notsignif = p.value >= 0.05
+  ) ->
+mod_signif
 
-sla %>% 
-  left_join(mod_signif, by = "Species") %>% 
+sla %>%
+  left_join(mod_signif, by = "Species") %>%
   ggplot(aes(DBH, SLA)) +
-  geom_point() + 
+  geom_point() +
   facet_wrap(~Species) +
-  geom_smooth(method = "lm", formula = y ~ x, 
-              aes(linetype = notsignif), show.legend = FALSE) +
-  labs(x = "DBH (cm)", y = expression(SLA~(cm^2~g^-1))) +
+  geom_smooth(
+    method = "lm", formula = y ~ x,
+    aes(linetype = notsignif), show.legend = FALSE
+  ) +
+  labs(x = "DBH (cm)", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(strip.text = element_text(face = "italic")) +
   geom_text(data = mod_signif, x = 60, y = 500, aes(label = p_pretty))
 ggsave("figures/fig2_sla-vs-dbh.png")
 
-# Data for text 
-mod_signif %>% 
-  filter(p.value < 0.1) %>% 
-  left_join(mod_signif_raw, by = "Species") %>% 
-  select(Species, term, estimate, p_pretty) %>% 
-  spread(term, estimate) %>% 
-  mutate(b = sprintf("%.1f", `(Intercept)`),
-         m = sprintf("%.3f", DBH)) -> 
-  mod_signif_clean
+# Data for text
+mod_signif %>%
+  filter(p.value < 0.1) %>%
+  left_join(mod_signif_raw, by = "Species") %>%
+  select(Species, term, estimate, p_pretty) %>%
+  spread(term, estimate) %>%
+  mutate(
+    b = sprintf("%.1f", `(Intercept)`),
+    m = sprintf("%.3f", DBH)
+  ) ->
+mod_signif_clean
 msc_list <- filter(mod_signif_clean, Species == "Liquidambar styraciflua")
 msc_nysy <- filter(mod_signif_clean, Species == "Nyssa sylvatica")
 msc_acru <- filter(mod_signif_clean, Species == "Acer rubrum")
@@ -372,9 +417,9 @@ Two species exhibited strong negative relationships between tree diameter (cm) a
 
 ```{r stats-prep}
 # Add a line break in Species field for prettier axis labels
-sla %>% 
+sla %>%
   mutate(Species = gsub(" ", "\n", Species)) ->
-  sla_figs
+sla_figs
 ```
 
 ### Species and position differences
@@ -383,52 +428,59 @@ sla %>%
 # SLA by species and canopy position
 ggplot(sla_figs, aes(Species, SLA)) +
   geom_boxplot(aes(fill = Position)) +
-  labs(x = "Species", y = expression(SLA~(cm^2~g^-1))) +
+  labs(x = "Species", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(axis.text.x = element_text(size = 8))
 
 # Does SLA differ between species? Tukey HSD test (from agricolae package for group labeling)
 m_species <- aov(SLA ~ Species_code * Position, data = sla)
 print(summary(m_species))
-msp <- tidy(m_species) %>% 
-  mutate(statistic = round(statistic, 3),
-         term = if_else(grepl(":", term), "Interaction", term))
-msp <- split(msp, msp$term)  # for text printing below
+msp <- tidy(m_species) %>%
+  mutate(
+    statistic = round(statistic, 3),
+    term = if_else(grepl(":", term), "Interaction", term)
+  )
+msp <- split(msp, msp$term) # for text printing below
 
 effect <- with(sla, interaction(Species_code, Position))
 hsd_species <- HSD.test(aov(SLA ~ effect, data = sla),
-                        "effect", group = TRUE, unbalanced = TRUE, console = TRUE)
+  "effect",
+  group = TRUE, unbalanced = TRUE, console = TRUE
+)
 
 # Make a nice plot
 sla %>%
-  group_by(Species_code, Position) %>% 
+  group_by(Species_code, Position) %>%
   summarise(sd_sla = sd(SLA), .groups = "drop") ->
-  xx
+xx
 
-hsd_species$groups %>% 
-  mutate(species = rownames(hsd_species$groups)) %>% 
-  separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>% 
-  mutate(species = forcats::fct_reorder(species, SLA)) %>% 
+hsd_species$groups %>%
+  mutate(species = rownames(hsd_species$groups)) %>%
+  separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>%
+  mutate(species = forcats::fct_reorder(species, SLA)) %>%
   left_join(xx, by = c("Species_code", "Position")) ->
-  species_position
+species_position
 
-species_position %>% 
-  ggplot(aes(species, SLA, fill = Position)) + geom_col() +
+species_position %>%
+  ggplot(aes(species, SLA, fill = Position)) +
+  geom_col() +
   geom_errorbar(aes(ymin = SLA - sd_sla, ymax = SLA + sd_sla), alpha = 0.33) +
-  geom_text(aes(label = groups), vjust = -1) + 
+  geom_text(aes(label = groups), vjust = -1) +
   scale_x_discrete("Species", labels = species_position$Species_code) +
-  ylab(expression(SLA~(cm^2~g^-1))) +
-  theme(legend.position = c(0.15, 0.8),
-        axis.text.x = element_text(size = 8))
+  ylab(expression(SLA ~ (cm^2 ~ g^-1))) +
+  theme(
+    legend.position = c(0.15, 0.8),
+    axis.text.x = element_text(size = 8)
+  )
 ggsave("figures/fig3-species_position.png")
 
 # Does SLA vary between high and low canopy position?
 # Here we can use a PAIRED t-test because samples taken from same trees
-sla %>% 
+sla %>%
   # Some trees were sampled more than once. Just look at earlier samples for simplicity
-  filter(mdy(Date) < mdy("8/1/2019")) %>% 
-  select(Plot, Species_common, DBH, Tag, Position, SLA) %>% 
-  spread(Position, SLA) -> 
-  sla_position
+  filter(mdy(Date) < mdy("8/1/2019")) %>%
+  select(Plot, Species_common, DBH, Tag, Position, SLA) %>%
+  spread(Position, SLA) ->
+sla_position
 
 tt_position <- t.test(sla_position$`High/Sun`, sla_position$`Low/Shade`, paired = TRUE)
 print(tt_position)
@@ -455,30 +507,32 @@ significantly lower SLA than low (shade) leaves.
 ```{r stats-elevation}
 # SLA by elevation
 ggplot(sla_figs, aes(Species, SLA)) +
-  geom_boxplot(aes(fill = Elevation)) + 
-  labs(x = "Species", y = expression(SLA~(cm^2~g^-1))) +
+  geom_boxplot(aes(fill = Elevation)) +
+  labs(x = "Species", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(axis.text.x = element_text(size = 8))
 
 # Does SLA differ between elevations after accounting for species?
 m_elevation <- aov(SLA ~ Species_code * Elevation, data = sla)
 print(summary(m_elevation))
-mel <- tidy(m_elevation) %>% 
-  mutate(statistic = round(statistic, 3),
-         term = if_else(grepl(":", term), "Interaction", term))
-mel <- split(mel, mel$term)  # for text printing below
+mel <- tidy(m_elevation) %>%
+  mutate(
+    statistic = round(statistic, 3),
+    term = if_else(grepl(":", term), "Interaction", term)
+  )
+mel <- split(mel, mel$term) # for text printing below
 
 # Run for each species with data at both elevations
 sla %>%
-  group_by(Species) %>% 
-  summarise(nel = length(unique(Elevation))) %>% 
-  filter(nel > 1) %>% 
+  group_by(Species) %>%
+  summarise(nel = length(unique(Elevation))) %>%
+  filter(nel > 1) %>%
   left_join(sla, by = "Species") %>%
-  nest_by(Species) %>% 
-  mutate(mod = list(lm(SLA ~ Elevation, data = data))) %>% 
-  summarise(tidy(mod)) %>% 
-  filter(term != "(Intercept)") %>% 
+  nest_by(Species) %>%
+  mutate(mod = list(lm(SLA ~ Elevation, data = data))) %>%
+  summarise(tidy(mod)) %>%
+  filter(term != "(Intercept)") %>%
   left_join(species_codes, by = "Species") ->
-  mel_sp
+mel_sp
 mel_sp <- split(mel_sp, mel_sp$Species_code)
 ```
 
@@ -501,27 +555,29 @@ sla_sal <- filter(sla, Elevation == "Shoreline")
 ggplot(filter(sla_sal, Elevation == "Shoreline"), aes(Salinity, SLA)) +
   geom_boxplot() +
   facet_wrap(~Species) +
-  ylab(expression(SLA~(cm^2~g^-1))) +
+  ylab(expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(strip.text = element_text(face = "italic"))
 ggsave("figures/fig4_salinity.png")
 
 # Does SLA differ between elevations after accounting for species?
 m_salinity <- aov(SLA ~ Species_code * Salinity, data = sla_sal)
 print(summary(m_salinity))
-msa <- tidy(m_salinity) %>% 
-  mutate(statistic = round(statistic, 3),
-         term = if_else(grepl(":", term), "Interaction", term))
-msa <- split(msa, msa$term)  # for text printing below
+msa <- tidy(m_salinity) %>%
+  mutate(
+    statistic = round(statistic, 3),
+    term = if_else(grepl(":", term), "Interaction", term)
+  )
+msa <- split(msa, msa$term) # for text printing below
 
 # Run for each species, grouping lower-salinity sites together
 sla_sal %>%
-  mutate(Salinity2 = if_else(Salinity == "High", "High", "Low")) %>% 
-  nest_by(Species) %>% 
-  mutate(mod = list(lm(SLA ~ Salinity2, data = data))) %>% 
-  summarise(tidy(mod)) %>% 
-  filter(term != "(Intercept)") %>% 
+  mutate(Salinity2 = if_else(Salinity == "High", "High", "Low")) %>%
+  nest_by(Species) %>%
+  mutate(mod = list(lm(SLA ~ Salinity2, data = data))) %>%
+  summarise(tidy(mod)) %>%
+  filter(term != "(Intercept)") %>%
   left_join(species_codes, by = "Species") ->
-  msa_sp
+msa_sp
 msa_sp <- split(msa_sp, msa_sp$Species_code)
 ```
 
@@ -549,50 +605,56 @@ trydata_raw <- readLines("try_data/10896.txt")
 # There is an invalid string for locale in the download file that screwing things up
 # Workaround:
 trydata <- suppressWarnings(c(trydata_raw[1], trydata_raw[grep("3116", trydata_raw)]))
-textConnection(trydata) %>% 
-  read.table(sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>% 
-  as_tibble() %>% 
-  select(Species = SpeciesName, OrigValueStr, OrigUnitStr) %>% 
-  mutate(SLA = suppressWarnings(as.numeric(OrigValueStr)),
-         Source = "TRY") %>% 
+textConnection(trydata) %>%
+  read.table(sep = "\t", header = TRUE, stringsAsFactors = FALSE) %>%
+  as_tibble() %>%
+  select(Species = SpeciesName, OrigValueStr, OrigUnitStr) %>%
+  mutate(
+    SLA = suppressWarnings(as.numeric(OrigValueStr)),
+    Source = "TRY"
+  ) %>%
   filter(!is.na(SLA)) ->
-  trydata
+trydata
 
 # Test for distribution differences
 ks_results <- list()
-for(sp in unique(sla$Species)) {
+for (sp in unique(sla$Species)) {
   x <- filter(sla, Species == sp)$SLA
   y <- filter(trydata, Species == sp)$SLA
-  if(length(x) > 5 && length(y) > 5) {
+  if (length(x) > 5 && length(y) > 5) {
     ks <- ks.test(x, y, alternative = "two.sided", exact = NULL)
-    ks_results[[sp]] <- tibble(N = length(x), N_try = length(y),
-                               D = ks$statistic, p.value = ks$p.value)
+    ks_results[[sp]] <- tibble(
+      N = length(x), N_try = length(y),
+      D = ks$statistic, p.value = ks$p.value
+    )
   }
 }
-bind_rows(ks_results, .id = "Species") %>% 
-  mutate(D = round(D, 3),
-         p_pretty = prettyp(p.value)) %>% 
+bind_rows(ks_results, .id = "Species") %>%
+  mutate(
+    D = round(D, 3),
+    p_pretty = prettyp(p.value)
+  ) %>%
   left_join(species_codes, by = "Species") ->
-  try_tests
+try_tests
 tryt <- split(try_tests, try_tests$Species_code)
 
-try_tests %>% 
-  select(-Species_common) %>% 
-  kable(digits = 3, format = "html") %>% 
+try_tests %>%
+  select(-Species_common) %>%
+  kable(digits = 3, format = "html") %>%
   kable_styling(bootstrap_options = bo)
 
-sla %>% 
-  select(Species_common, Species, SLA = SLA) %>% 
-  mutate(Source = "This study") %>% 
-  bind_rows(trydata) %>% 
+sla %>%
+  select(Species_common, Species, SLA = SLA) %>%
+  mutate(Source = "This study") %>%
+  bind_rows(trydata) %>%
   filter(SLA < 600) ->
-  combined_data
+combined_data
 
-ggplot(combined_data, aes(x = SLA, fill = Source)) + 
-  geom_density(alpha = 0.5) + 
+ggplot(combined_data, aes(x = SLA, fill = Source)) +
+  geom_density(alpha = 0.5) +
   facet_wrap(~Species) +
   theme(strip.text = element_text(face = "italic")) +
-  xlab(expression(SLA~(cm^2~g^-1))) +
+  xlab(expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(legend.position = c(0.6, 0.15))
 ggsave("figures/fig5_try.png")
 ```
@@ -608,186 +670,220 @@ distributions in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r t
 ```{r neon-data}
 # NEON litter data downloaded 2021-03-20 for comparison
 neon_pertrap <- read_csv("NEON_litterfall/stackedFiles/ltr_pertrap.csv",
-                         col_types = "cccccdcdddcccddDccccdccTc")
+  col_types = "cccccdcdddcccddDccccdccTc"
+)
 neon_massdata <- read_csv("NEON_litterfall/stackedFiles/ltr_massdata.csv",
-                          col_types = "ccccccTTTcTTcccccdcccTc")
+  col_types = "ccccccTTTcTTcccccdcccTc"
+)
 neon_fielddata <- read_csv("NEON_litterfall/stackedFiles/ltr_fielddata.csv",
-                           col_types = "ccccccDDcdcccccccTc")
+  col_types = "ccccccDDcdcccccccTc"
+)
 
-neon_fielddata %>% 
+neon_fielddata %>%
   # isolate records with trap problems recorded
-  filter(!grepl("OK", trapCondition, fixed = TRUE)) %>% 
-  select(collectDate, trapID) %>% 
+  filter(!grepl("OK", trapCondition, fixed = TRUE)) %>%
+  select(collectDate, trapID) %>%
   mutate(Year = year(collectDate)) ->
-  trap_problems
+trap_problems
 
-neon_massdata %>% 
-  select(trapID, collectDate, functionalGroup, dryMass) %>% 
-  filter(functionalGroup == "Leaves") %>% 
-  mutate(Year = year(collectDate)) %>% 
+neon_massdata %>%
+  select(trapID, collectDate, functionalGroup, dryMass) %>%
+  filter(functionalGroup == "Leaves") %>%
+  mutate(Year = year(collectDate)) %>%
   # compute annual sums
-  group_by(Year, trapID) %>% 
-  summarise(dryMass = sum(dryMass), .groups = "drop") %>% 
+  group_by(Year, trapID) %>%
+  summarise(dryMass = sum(dryMass), .groups = "drop") %>%
   # remove traps with problems in a given year
-  anti_join(trap_problems, by = c("Year", "trapID")) %>% 
+  anti_join(trap_problems, by = c("Year", "trapID")) %>%
   # pull in trap size information
-  left_join(select(neon_pertrap, trapID, trapType, trapSize), by = "trapID") %>% 
-  filter(trapType == "Elevated") %>% 
+  left_join(select(neon_pertrap, trapID, trapType, trapSize), by = "trapID") %>%
+  filter(trapType == "Elevated") %>%
   mutate(dryMass_m2 = dryMass / trapSize) ->
-  neon_litter
+neon_litter
 ```
 
 ```{r litter-data}
 # Read in litter data
-list.files("../SLA/litter/", pattern = "*.csv", full.names = TRUE) %>% 
+list.files("../SLA/litter/", pattern = "*.csv", full.names = TRUE) %>%
   lapply(read_csv, col_types = "ccccddddddc") %>%
-  bind_rows %>% 
-  filter(!is.na(Plot)) %>% 
+  bind_rows() %>%
+  filter(!is.na(Plot)) %>%
   # there are duplicate rows!!!!! wtf
-  distinct() %>% 
+  distinct() %>%
   mutate(Date_collected = mdy(Date_collected)) ->
-  litter_data_raw
+litter_data_raw
 
 # QC: check for missing data and/or data duplication
-litter_data_raw %>% 
-  group_by(Plot, Date_collected) %>% 
-  summarise(N = n(), .groups = "drop") %>% 
-  pivot_wider(names_from = Plot, values_from = N, values_fill = 0) %>% 
-  arrange(Date_collected) %>% 
-  kable(digits = 1, format = "html") %>%  
+litter_data_raw %>%
+  group_by(Plot, Date_collected) %>%
+  summarise(N = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Plot, values_from = N, values_fill = 0) %>%
+  arrange(Date_collected) %>%
+  kable(digits = 1, format = "html") %>%
   kable_styling(bootstrap_options = bo)
 
 # LSLE C is NA (it's the trap that got destroyed by a tree early on)
 # Do we drop it, or impute it?
 
 # This is our mapping from Species (in the litter data) to species code (as in SLA data)
-species_litter_map <- c("M_leaf_beech" = "FAGR",
-                        "M_leaf_oak" = "QUAL",
-                        "M_leaf_tulip" = "LITU",
-                        "M_leaf_other" = "OTHER")  # temporary
+species_litter_map <- c(
+  "M_leaf_beech" = "FAGR",
+  "M_leaf_oak" = "QUAL",
+  "M_leaf_tulip" = "LITU",
+  "M_leaf_other" = "OTHER"
+) # temporary
 
-litter_data_raw %>% 
+litter_data_raw %>%
   # filter for exactly one year of litter data
-  filter(Date_collected >= mdy("10/1/2018"), 
-         Date_collected < mdy("10/1/2019")) %>% 
-  select(Plot, Trap, Date_collected, starts_with("M_leaf")) %>% 
+  filter(
+    Date_collected >= mdy("10/1/2018"),
+    Date_collected < mdy("10/1/2019")
+  ) %>%
+  select(Plot, Trap, Date_collected, starts_with("M_leaf")) %>%
   # restructure data, using only leaf litter
-  gather(Species, Value, starts_with("M_leaf")) %>% 
+  gather(Species, Value, starts_with("M_leaf")) %>%
   # Traps are 0.5 m2; convert to 1 m2
-  mutate(Value = Value / 0.5,
-         yearday = yday(Date_collected),
-         # Add species codes
-         Species_code = species_litter_map[Species]) ->
-  litter_2019
+  mutate(
+    Value = Value / 0.5,
+    yearday = yday(Date_collected),
+    # Add species codes
+    Species_code = species_litter_map[Species]
+  ) ->
+litter_2019
 
-litter_2019 %>% 
-  # Compute sum of leaf biomass for each trap and species 
-  group_by(Plot, Species_code, Trap) %>% 
-  summarise(annual_litter_mass = sum(Value, na.rm = TRUE), 
-            .groups = "drop") ->
-  avg_litter
+litter_2019 %>%
+  # Compute sum of leaf biomass for each trap and species
+  group_by(Plot, Species_code, Trap) %>%
+  summarise(
+    annual_litter_mass = sum(Value, na.rm = TRUE),
+    .groups = "drop"
+  ) ->
+avg_litter
 
 # Data for reporting
 # Plot-level means
-avg_litter %>% 
-  group_by(Plot, Trap) %>% 
-  summarise(alm = sum(annual_litter_mass), .group = "drop_last") %>% 
+avg_litter %>%
+  group_by(Plot, Trap) %>%
+  summarise(alm = sum(annual_litter_mass), .group = "drop_last") %>%
   summarise(alm_sd = sd(alm), alm = mean(alm)) ->
-  al_plot
+al_plot
 # Species shares
-avg_litter %>% 
-  group_by(Plot, Species_code) %>% 
+avg_litter %>%
+  group_by(Plot, Species_code) %>%
   summarise(alm = mean(annual_litter_mass), .groups = "drop_last") %>%
-  mutate(frac = alm / sum(alm)) %>% 
-  group_by(Species_code) %>% 
+  mutate(frac = alm / sum(alm)) %>%
+  group_by(Species_code) %>%
   summarise(frac = mean(frac)) ->
-  al_species
+al_species
 al_species <- split(al_species, al_species$Species_code)
 
-# bar graph 
+# bar graph
 neon_md <- median(neon_litter$dryMass_m2)
 neon_sd <- sd(neon_litter$dryMass_m2)
 ggplot(avg_litter, aes(Trap, annual_litter_mass, fill = Species_code)) +
   geom_col() +
   facet_wrap(~Plot) +
-  ylab(expression(Leaf~litterfall~(g~m^-2))) +
-  annotate(geom = "rect", xmin = -Inf, xmax = Inf,
-           ymin = neon_md - neon_sd, ymax = neon_md + neon_sd, alpha = 0.3) +
+  ylab(expression(Leaf ~ litterfall ~ (g ~ m^-2))) +
+  annotate(
+    geom = "rect", xmin = -Inf, xmax = Inf,
+    ymin = neon_md - neon_sd, ymax = neon_md + neon_sd, alpha = 0.3
+  ) +
   geom_hline(yintercept = neon_md, linetype = 2, alpha = 0.75) +
   geom_hline(yintercept = neon_md - neon_sd, linetype = 2, alpha = 0.3) +
   geom_hline(yintercept = neon_md + neon_sd, linetype = 2, alpha = 0.3)
 
 # Inset plot: litter over time - by species
-litter_2019 %>% 
+litter_2019 %>%
   # add all species together for each day of collection and plot and trap
-  group_by(yearday, Plot, Species_code) %>% 
-  summarise(Value = mean(Value, na.rm = TRUE),
-            .groups = "drop") %>% 
+  group_by(yearday, Plot, Species_code) %>%
+  summarise(
+    Value = mean(Value, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   # compute cumulative litter mass for the year for each plot and species
-  arrange(yearday) %>% 
-  group_by(Plot, Species_code) %>% 
-  mutate(cum_litter = cumsum(Value))  %>% 
+  arrange(yearday) %>%
+  group_by(Plot, Species_code) %>%
+  mutate(cum_litter = cumsum(Value)) %>%
   # ...and plot
-  ggplot(aes(yearday, cum_litter, fill = Species_code)) + 
-  geom_area(position = "stack") + 
+  ggplot(aes(yearday, cum_litter, fill = Species_code)) +
+  geom_area(position = "stack") +
   facet_wrap(~Plot) +
   coord_cartesian(xlim = c(184, 366)) +
-  theme(plot.background = element_rect(color="black"),
-        axis.title = element_blank(),
-        axis.text = element_blank(),
-        strip.text = element_blank(),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 6),
-        legend.position = "bottom") +
-  labs(x = "Day of year", 
-       y = expression(Leaf~litterfall~(g~m^-2))) ->
-  p_litter_2019_species
+  theme(
+    plot.background = element_rect(color = "black"),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    strip.text = element_blank(),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 6),
+    legend.position = "bottom"
+  ) +
+  labs(
+    x = "Day of year",
+    y = expression(Leaf ~ litterfall ~ (g ~ m^-2))
+  ) ->
+p_litter_2019_species
 
 # Litter over time - all species
-litter_2019 %>% 
+litter_2019 %>%
   # add all species together for each day of collection and plot and trap
-  group_by(yearday, Plot, Trap) %>% 
-  summarise(Value = sum(Value, na.rm = TRUE),
-            .groups = "drop") %>% 
+  group_by(yearday, Plot, Trap) %>%
+  summarise(
+    Value = sum(Value, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   # compute cumulative litter mass for the year for each plot and trap
-  arrange(yearday) %>% 
-  group_by(Plot, Trap) %>% 
+  arrange(yearday) %>%
+  group_by(Plot, Trap) %>%
   mutate(cum_litter = cumsum(Value)) ->
-  annual_litter_trap
+annual_litter_trap
 
 annual_litter_trap %>%
   # compute the mean and s.d. across all traps within a plot, for each day
-  group_by(Plot, yearday) %>% 
-  summarise(mean_litter = mean(cum_litter, na.rm = TRUE), 
-            sd_mean_litter = sd(cum_litter, na.rm = TRUE),
-            n_litter = length(na.omit(cum_litter)),
-            .groups = "drop") %>% 
-  mutate(Salinity = factor(substr(Plot, 1, 1), levels = c("L", "M", "H"), 
-                           labels = c("Low", "Medium", "High"))) ->
-  annual_litter
+  group_by(Plot, yearday) %>%
+  summarise(
+    mean_litter = mean(cum_litter, na.rm = TRUE),
+    sd_mean_litter = sd(cum_litter, na.rm = TRUE),
+    n_litter = length(na.omit(cum_litter)),
+    .groups = "drop"
+  ) %>%
+  mutate(Salinity = factor(substr(Plot, 1, 1),
+    levels = c("L", "M", "H"),
+    labels = c("Low", "Medium", "High")
+  )) ->
+annual_litter
 
 # Line graph
-p_avg_litter <- ggplot(annual_litter, 
-                       aes(yearday, mean_litter, color = Salinity, group = Plot)) +
+p_avg_litter <- ggplot(
+  annual_litter,
+  aes(yearday, mean_litter, color = Salinity, group = Plot)
+) +
   geom_line(size = 1, na.rm = TRUE) +
-  labs(x = "Day of year", 
-       y = expression(Leaf~litterfall~(g~m^-2))) +
-  annotate(geom = "rect", xmin = 330, xmax = Inf,
-           ymin = neon_md - neon_sd, ymax = neon_md + neon_sd, alpha = 0.3) +
+  labs(
+    x = "Day of year",
+    y = expression(Leaf ~ litterfall ~ (g ~ m^-2))
+  ) +
+  annotate(
+    geom = "rect", xmin = 330, xmax = Inf,
+    ymin = neon_md - neon_sd, ymax = neon_md + neon_sd, alpha = 0.3
+  ) +
   annotate(geom = "segment", x = 330, xend = Inf, y = neon_md, yend = neon_md, linetype = 2) +
-  annotate(geom = "segment", x = 330, xend = Inf, y = neon_md - neon_sd, yend = neon_md - neon_sd,
-           linetype = 2, alpha = 0.5) +
-  annotate(geom = "segment", x = 330, xend = Inf, y = neon_md + neon_sd, yend = neon_md + neon_sd, 
-           linetype = 2, alpha = 0.5)
+  annotate(
+    geom = "segment", x = 330, xend = Inf, y = neon_md - neon_sd, yend = neon_md - neon_sd,
+    linetype = 2, alpha = 0.5
+  ) +
+  annotate(
+    geom = "segment", x = 330, xend = Inf, y = neon_md + neon_sd, yend = neon_md + neon_sd,
+    linetype = 2, alpha = 0.5
+  )
 
 # inset plot
-litter_plot  <-
+litter_plot <-
   ggdraw() +
   draw_plot(p_avg_litter) +
   draw_plot(p_litter_2019_species, x = 0.15, y = .45, width = 0.5, height = 0.5)
 print(litter_plot)
 save_plot("figures/fig6-litter.png", plot = litter_plot)
-
 ```
 
 Litter production peaked during the autumn in these northern temperate sites (**Figure 6**). 
@@ -804,138 +900,164 @@ Across all plots, _Fagus grandifolia_ dominated, comprising
 Estimate LAI for all plots and examine sources of uncertainty in our estimate.
 
 ```{r lai}
-# Join litter data with SLA data 
-sla %>% 
-  group_by(Plot, Species_code) %>% 
-  summarise(avg_sla = mean(SLA),
-            sd_sla = sd(SLA),
-            .groups = "drop") ->
-  sla_for_lai
+# Join litter data with SLA data
+sla %>%
+  group_by(Plot, Species_code) %>%
+  summarise(
+    avg_sla = mean(SLA),
+    sd_sla = sd(SLA),
+    .groups = "drop"
+  ) ->
+sla_for_lai
 
-# At this point, we have SLA by species, but the litter data is not as resolved; 
+# At this point, we have SLA by species, but the litter data is not as resolved;
 # there's an "Other" category we need to have an SLA for. To do this, we compute
-# a weighted mean SLA based on the occurrence (squared diameter) of secondary 
+# a weighted mean SLA based on the occurrence (squared diameter) of secondary
 # species not broken out in the litter data:
 # sweetgum, black gum, red maple, ...?
-inventory %>% 
-  filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>% 
-  group_by(Plot, Species_code) %>% 
-  summarise(weight = sum(DBH ^ 2),
-            .groups = "drop") ->
-  plot_weights
+inventory %>%
+  filter(Species_code %in% c("ACRU", "NYSY", "LIST")) %>%
+  group_by(Plot, Species_code) %>%
+  summarise(
+    weight = sum(DBH^2),
+    .groups = "drop"
+  ) ->
+plot_weights
 
-sla_for_lai %>% 
-  left_join(plot_weights, by = c("Plot", "Species_code")) %>% 
-  filter(!is.na(weight)) %>% 
-  group_by(Plot) %>% 
-  summarise(Species_code = "OTHER",
-            sd_sla = weighted.mean(sd_sla, w = weight, na.rm = TRUE),
-            avg_sla = weighted.mean(avg_sla, w = weight)) %>% 
+sla_for_lai %>%
+  left_join(plot_weights, by = c("Plot", "Species_code")) %>%
+  filter(!is.na(weight)) %>%
+  group_by(Plot) %>%
+  summarise(
+    Species_code = "OTHER",
+    sd_sla = weighted.mean(sd_sla, w = weight, na.rm = TRUE),
+    avg_sla = weighted.mean(avg_sla, w = weight)
+  ) %>%
   # Now bind the SLA means with our new SLA_other data
   bind_rows(sla_for_lai) ->
-  sla_for_lai
+sla_for_lai
 
 # We have litter data, but no SLA samples, from HSHE/HSME/HSLE
 # For these we will use control and/or shore
 # Make a table that tells us what plot's SLA to use for each plot
-sla_map <- tibble(Plot = unique(avg_litter$Plot),
-                  Use_SLA_from_plot = Plot)
+sla_map <- tibble(
+  Plot = unique(avg_litter$Plot),
+  Use_SLA_from_plot = Plot
+)
 sla_map$Use_SLA_from_plot[sla_map$Plot %in% c("HSHE", "HSME")] <- "Control"
 sla_map$Use_SLA_from_plot[sla_map$Plot == "HSLE"] <- "Shore"
 
-avg_litter %>% 
-  left_join(sla_map, by = "Plot") %>% 
+avg_litter %>%
+  left_join(sla_map, by = "Plot") %>%
   left_join(sla_for_lai, by = c("Use_SLA_from_plot" = "Plot", "Species_code")) ->
-  sla_litter_joined
+sla_litter_joined
 
-if(nrow(avg_litter) != nrow(sla_litter_joined)) {
+if (nrow(avg_litter) != nrow(sla_litter_joined)) {
   stop("These joins should not have added any rows, but they did!")
 }
 
 # Fill in any remaining missing values from median of dataset
-sla_litter_joined %>% 
-  group_by(Species_code) %>% 
-  mutate(avg_sla = if_else(is.na(avg_sla), median(avg_sla, na.rm = TRUE), avg_sla),
-         sd_sla = if_else(is.na(sd_sla), median(sd_sla, na.rm = TRUE), sd_sla)) ->
-  sla_litter_joined
+sla_litter_joined %>%
+  group_by(Species_code) %>%
+  mutate(
+    avg_sla = if_else(is.na(avg_sla), median(avg_sla, na.rm = TRUE), avg_sla),
+    sd_sla = if_else(is.na(sd_sla), median(sd_sla, na.rm = TRUE), sd_sla)
+  ) ->
+sla_litter_joined
 
 # We do three Monte Carlo draws:
 # - first, based on draws from the trap uncertainty
 # - second, based on the SLA uncertainty
 # - third, based on both
 generate_lai <- function(n, alm, sd_alm, avg_sla, sd_sla) {
-  # cm2/g * g/m2 = LAI; convert to m2/g for reporting 
-  tibble(trial = seq_len(n), 
-         alm = rnorm(n, alm, sd_alm),
-         sla = rnorm(n, avg_sla, sd_sla),
-         lai = alm * sla / (100 * 100))
+  # cm2/g * g/m2 = LAI; convert to m2/g for reporting
+  tibble(
+    trial = seq_len(n),
+    alm = rnorm(n, alm, sd_alm),
+    sla = rnorm(n, avg_sla, sd_sla),
+    lai = alm * sla / (100 * 100)
+  )
 }
 
-sla_litter_joined %>% 
+sla_litter_joined %>%
   # compute mean litter by species in each plot
   group_by(Plot, Species_code) %>%
-  summarise(alm = mean(annual_litter_mass),
-            sd_alm = sd(annual_litter_mass),
-            avg_sla = mean(avg_sla),
-            sd_sla = mean(sd_sla),
-            .groups = "keep") ->   # note this line is critical!
-  mc_data
+  summarise(
+    alm = mean(annual_litter_mass),
+    sd_alm = sd(annual_litter_mass),
+    avg_sla = mean(avg_sla),
+    sd_sla = mean(sd_sla),
+    .groups = "keep"
+  ) -> # note this line is critical!
+mc_data
 
 # Uncertainty from SLA
 MC_N <- 1000
-mc_data %>% 
+mc_data %>%
   # Monte Carlo LAI
-  do(generate_lai(MC_N, .$alm, sd_alm = 0, .$avg_sla, .$sd_sla)) %>% 
+  do(generate_lai(MC_N, .$alm, sd_alm = 0, .$avg_sla, .$sd_sla)) %>%
   mutate(Uncertainty = "SLA") ->
-  mc_lai_sla
+mc_lai_sla
 
 # Uncertainty from traps
-mc_data %>% 
+mc_data %>%
   # Monte Carlo LAI
-  do(generate_lai(MC_N, .$alm, .$sd_alm, .$avg_sla, sd_sla = 0)) %>% 
+  do(generate_lai(MC_N, .$alm, .$sd_alm, .$avg_sla, sd_sla = 0)) %>%
   mutate(Uncertainty = "Litter") ->
-  mc_lai_litter
+mc_lai_litter
 
 # Uncertainty from both
-mc_data %>% 
+mc_data %>%
   # Monte Carlo LAI
-  do(generate_lai(MC_N, .$alm, .$sd_alm, .$avg_sla, .$sd_sla)) %>% 
+  do(generate_lai(MC_N, .$alm, .$sd_alm, .$avg_sla, .$sd_sla)) %>%
   mutate(Uncertainty = "Both") ->
-  mc_lai_both
+mc_lai_both
 
-bind_rows(mc_lai_sla, mc_lai_litter, mc_lai_both) %>% 
-  mutate(Uncertainty = factor(Uncertainty, levels = c("Litter", "SLA", "Both"))) %>% 
-  group_by(Uncertainty, Plot, trial) %>% 
-  summarise(lai = sum(lai), .groups = "drop") %>% 
-  ggplot(aes(lai, color = Uncertainty)) + 
-  geom_density() + 
+bind_rows(mc_lai_sla, mc_lai_litter, mc_lai_both) %>%
+  mutate(Uncertainty = factor(Uncertainty, levels = c("Litter", "SLA", "Both"))) %>%
+  group_by(Uncertainty, Plot, trial) %>%
+  summarise(lai = sum(lai), .groups = "drop") %>%
+  ggplot(aes(lai, color = Uncertainty)) +
+  geom_density() +
   facet_wrap(~Plot) +
-  labs(x = expression(LAI~(m^2~m^-2)),
-       y = "Density")
+  labs(
+    x = expression(LAI ~ (m^2 ~ m^-2)),
+    y = "Density"
+  )
 ggsave("figures/fig7-lai-mc.png")
 
 # Compute LAI and 95% CI
-mc_lai_both %>% 
-  group_by(Plot, trial) %>% 
-  summarise(lai = sum(lai),
-            .groups = "drop_last") %>% 
-  summarise(LAI = median(lai),
-            lcl = LAI - sd(lai) * 1.96,
-            ucl = LAI + sd(lai) * 1.96) %>% 
-  transmute(Plot = Plot,
-            LAI = round(LAI, 1),
-            ci = paste0("(", format(lcl, digits = 1, nsmall = 1), ", ",
-                        format(ucl, digits = 1, nsmall = 1), ")")) ->
-  mc_lai_plot
+mc_lai_both %>%
+  group_by(Plot, trial) %>%
+  summarise(
+    lai = sum(lai),
+    .groups = "drop_last"
+  ) %>%
+  summarise(
+    LAI = median(lai),
+    lcl = LAI - sd(lai) * 1.96,
+    ucl = LAI + sd(lai) * 1.96
+  ) %>%
+  transmute(
+    Plot = Plot,
+    LAI = round(LAI, 1),
+    ci = paste0(
+      "(", format(lcl, digits = 1, nsmall = 1), ", ",
+      format(ucl, digits = 1, nsmall = 1), ")"
+    )
+  ) ->
+mc_lai_plot
 
-mc_lai_plot %>% 
+mc_lai_plot %>%
   filter(grepl("LE$", Plot)) ->
-  mc_lai_sal
+mc_lai_sal
 mc_lai_sal <- split(mc_lai_sal, mc_lai_sal$Plot)
 
-mc_lai_plot %>% 
-  kable(digits = 1, format = "html",
-        caption = paste0("Table 3: LAI median and 95% confidence intervals (N = ", MC_N, " draws)")) %>%  
+mc_lai_plot %>%
+  kable(
+    digits = 1, format = "html",
+    caption = paste0("Table 3: LAI median and 95% confidence intervals (N = ", MC_N, " draws)")
+  ) %>%
   kable_styling(bootstrap_options = bo)
 ```
 
