@@ -1,0 +1,74 @@
+---
+title: "SLA Analysis"
+author: "Stephanie Pennington"
+date: "5/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+# Load necessary packages
+library(pacman)
+
+pacman::p_load(dplyr, tidyr, readr, knitr, kableExtra,
+               lubridate, ggplot2, cowplot, ggmap, agricolae, broom)
+
+source("process_sla.R")
+
+prettyp <- function(p.value) {
+  if_else(p.value < 0.001, "P < 0.001", sprintf("P = %.3f", p.value))
+}
+
+# bootstrap options for kable
+bo <- c("striped", "hover", "condensed", "responsive", full_width = FALSE)
+```
+
+# Motivation
+
+Specific leaf area (SLA, the ratio of leaf area to leaf dry mass) is an important trait for plant physiological, structural, and modeling analyses. SLA is also a useful measurement to upscale plant production, vegetation community composition, and other processes in Earth System Models, providing current-day benchmarks and improving predictions of future vegetation structure and function in terrestrial ecosystems.
+
+We investigate SLA differences between plots of varying elevation and salinity exposure along a tributary of the Chesapeake Bay. The goals of this project are to (i) quantify SLA of eight major tree species, at multiple canopy heights, in temperate deciduous forests at the Smithsonian Environmental Research Center (Maryland, USA); and (ii) test for effects of soil moisture and saltwater exposure on SLA by comparing samples taken at shoreline and upland positions, with the shoreline samples taken along a \~2 km tidal creek that provided a natural salinity gradient.
+
+Map of SERC with plots labeled:
+
+```{r serc-map, message=FALSE}
+sites <- read.csv(file = "Design/sites.csv")
+sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
+sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
+
+ggmap(sites_map) +
+  geom_point(data = sites, aes(x = Longitude, y = Latitude), color = "black", size = 1) +
+  geom_text(data = sites, aes(x = Longitude, y = Latitude, label = Plot), size = 3, vjust = 2) +
+  # Tower coordinates from https://www.neonscience.org/field-sites/serc
+  annotate(geom = "point", x = -76.560014, y = 38.890131, size = 1) +
+  annotate(geom = "text", x = -76.560014, y = 38.890131, label = "NEON Tower", size = 2.5, vjust = -1) +
+  labs(x = "Longitude", y = "Latitude") +
+  theme(axis.text = element_text(size = 10))
+
+# ggsave("figures/fig1-map.png")
+```
+
+```{r tables, message=FALSE}
+
+# Table 1: SLA by species
+sla %>%
+  group_by(Species_code, Species) %>%
+  summarise(n = n(), mean_SLA = mean(SLA) %>% round(1),
+    sd_SLA = sd(SLA), .groups = "drop") %>%
+  kable(digits = 1, format = "html", caption = "Table 1: Specific leaf area (cm2/g) by species") %>% 
+  kable_styling(bootstrap_options = bo)
+
+# Table 2: SLA along salinity gradient
+sla %>%
+  filter(!is.na(Salinity)) %>%
+  group_by(Species, Salinity) %>%
+  summarise(
+    mean_SLA = paste(round(mean(SLA), digits = 1), "±", round(sd(SLA), digits = 1),
+      paste0("(", n(), ")")), .groups = "drop") %>%
+  spread(Salinity, mean_SLA, fill = "") %>%
+  kable(digits = 1, format = "html", caption = "Table 2: Specific leaf area (cm2/g) along salinity gradient") %>% 
+  kable_styling(bootstrap_options = bo)
+
+```
+
