@@ -11,8 +11,8 @@ knitr::opts_chunk$set(echo = FALSE)
 # Load necessary packages
 library(pacman)
 
-pacman::p_load(dplyr, tidyr, readr, knitr, kableExtra,
-               lubridate, ggplot2, cowplot, ggmap, agricolae, broom)
+pacman::p_load(dplyr, tidyr, readr, knitr, kableExtra, lme4,
+               lubridate, ggplot2, cowplot, ggmap, agricolae, broom, performance)
 
 source("process_sla.R")
 
@@ -72,3 +72,26 @@ sla %>%
 
 ```
 
+```{r upland-model, message = FALSE}
+
+# Upland data only
+
+sla %>% 
+  filter(Elevation == "Upland") -> sla_upland
+
+lmer(SLA ~ Species * DBH + Position + (1 | Plot:Species),
+     data = sla_upland) -> m_upland
+
+```
+
+```{r shoreline-model, message = FALSE}
+
+# Shoreline data only
+
+sla %>% 
+  filter(Elevation == "Shoreline") -> sla_shoreline
+
+lm(SLA ~ Species * DBH + Position + Salinity,
+     data = sla_shoreline) -> m_shoreline
+
+```

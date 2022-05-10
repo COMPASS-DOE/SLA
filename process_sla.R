@@ -4,7 +4,8 @@
 # Read in main data file and compute SLA
 
 read_csv("sla_data.csv", col_types = "ccccdcdddc") %>%
-  mutate(SLA = Leaf_Area_cm2 / Leaf_Mass_g) ->
+  mutate(SLA = Leaf_Area_cm2 / Leaf_Mass_g) %>% 
+  separate(Position, into = c("Position", "Light"), sep = "/")->
 sla_raw
 
 
