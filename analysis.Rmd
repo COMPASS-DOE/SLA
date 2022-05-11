@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = FALSE)
 # Load necessary packages
 library(pacman)
 
-pacman::p_load(dplyr, tidyr, readr, knitr, kableExtra, lme4,
+pacman::p_load(dplyr, tidyr, readr, knitr, kableExtra, lme4, car, sjPlot,
                lubridate, ggplot2, cowplot, ggmap, agricolae, broom, performance)
 
 source("process_sla.R")
@@ -76,12 +76,23 @@ sla %>%
 
 # Upland data only
 
+# What controls SLA variability for upland (non-shoreline) trees?
+# We're testing major fixed effects, Species and Position,
+# as well as the interaction between Species and DBH, since there's a
+# DBH-related SLA trend in at least some species.
+# Finally, we account for overall plot-to-plot differences in SLA (for example
+# due to a more fertile or sunny site) by including it as a random effect.
 sla %>% 
   filter(Elevation == "Upland") -> sla_upland
 
-lmer(SLA ~ Species * DBH + Position + (1 | Plot:Species),
+lmer(SLA ~ Species + Species:DBH + Position + (1 | Plot),
      data = sla_upland) -> m_upland
 
+# Pretty-print full model output
+sjPlot::tab_model(m_upland)
+
+# ANOVA table; this is what we report in the manuscript
+car::Anova(m_upland, type = "III")
 ```
 
 ```{r shoreline-model, message = FALSE}
