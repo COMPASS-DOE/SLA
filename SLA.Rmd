@@ -1,6 +1,6 @@
 ---
 title: "Specific leaf area in a coastal temperate deciduous forest: species and salinity effects"
-author: "BBL and Lillie Haddock"
+author: "Ben Bond-Lamberty and Lillie Haddock"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -57,7 +57,8 @@ Map of SERC with plots labeled:
 
 ``` {r serc-map, message=FALSE}
 sites <- read.csv(file = "Design/sites.csv")
-sites_bbox <- make_bbox(lon = sites$Longitude, lat = sites$Latitude, f = 0.8)
+sites_bbox <- c(left = -76.57186, bottom = 38.8611, 
+                right = -76.52123, top = 38.90127)
 sites_map <- get_map(location = sites_bbox, source = "stamen", maptype = "terrain", zoom = 15)
 
 ggmap(sites_map) +
@@ -68,7 +69,7 @@ ggmap(sites_map) +
   geom_text(
     data = sites,
     aes(x = Longitude, y = Latitude, label = Plot),
-    size = 3, vjust = 2
+    size = 3.5, vjust = 1.5
   ) +
   # Tower coordinates from https://www.neonscience.org/field-sites/serc
   annotate(geom = "point", x = -76.560014, y = 38.890131, size = 1) +
@@ -359,12 +360,10 @@ ggplot(sla, aes(n_Leaves, Leaf_Mass_g, color = Species_code)) +
 sla %>%
   # Determine which relationships are significant or not
   # Using new dplyr 1.0/broom 0.7 syntax   :(
-  nest_by(Species) %>%
-  mutate(mod = list(lm(SLA ~ DBH, data = data))) %>%
-  summarise(tidy(mod),
-    .groups = "drop"
-  ) ->
-mod_signif_raw
+  group_by(Species) %>%
+  do(mod = lm(SLA ~ DBH, data = .)) %>%
+  reframe(Species = Species, tidy(mod)) ->
+  mod_signif_raw
 
 mod_signif_raw %>%
   kable(digits = 1, format = "html", caption = "DBH vs. SLA models") %>%
@@ -376,9 +375,8 @@ mod_signif_raw %>%
   transmute(Species,
     p.value = round(p.value, 3),
     p_pretty = prettyp(p.value),
-    notsignif = p.value >= 0.05
-  ) ->
-mod_signif
+    notsignif = p.value >= 0.05) ->
+  mod_signif
 
 sla %>%
   left_join(mod_signif, by = "Species") %>%
@@ -387,8 +385,7 @@ sla %>%
   facet_wrap(~Species) +
   geom_smooth(
     method = "lm", formula = y ~ x,
-    aes(linetype = notsignif), show.legend = FALSE
-  ) +
+    aes(linetype = notsignif), show.legend = FALSE) +
   labs(x = "DBH (cm)", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(strip.text = element_text(face = "italic")) +
   geom_text(data = mod_signif, x = 60, y = 500, aes(label = p_pretty))

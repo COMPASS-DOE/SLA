@@ -11,8 +11,10 @@ knitr::opts_chunk$set(echo = FALSE)
 # Load necessary packages
 library(pacman)
 
-pacman::p_load(dplyr, tidyr, readr, knitr, kableExtra, lme4, car, sjPlot,
-               lubridate, ggplot2, cowplot, ggmap, agricolae, broom, performance)
+pacman::p_load(
+  dplyr, tidyr, readr, knitr, kableExtra, lme4, car, sjPlot,
+  lubridate, ggplot2, cowplot, ggmap, agricolae, broom, performance
+)
 
 source("process_sla.R")
 
@@ -50,13 +52,14 @@ ggmap(sites_map) +
 ```
 
 ```{r tables, message=FALSE}
-
 # Table 1: SLA by species
 sla %>%
   group_by(Species_code, Species) %>%
-  summarise(n = n(), mean_SLA = mean(SLA) %>% round(1),
-    sd_SLA = sd(SLA), .groups = "drop") %>%
-  kable(digits = 1, format = "html", caption = "Table 1: Specific leaf area (cm2/g) by species") %>% 
+  summarise(
+    n = n(), mean_SLA = mean(SLA) %>% round(1),
+    sd_SLA = sd(SLA), .groups = "drop"
+  ) %>%
+  kable(digits = 1, format = "html", caption = "Table 1: Specific leaf area (cm2/g) by species") %>%
   kable_styling(bootstrap_options = bo)
 
 # Table 2: SLA along salinity gradient
@@ -64,16 +67,17 @@ sla %>%
   filter(!is.na(Salinity)) %>%
   group_by(Species, Salinity) %>%
   summarise(
-    mean_SLA = paste(round(mean(SLA), digits = 1), "±", round(sd(SLA), digits = 1),
-      paste0("(", n(), ")")), .groups = "drop") %>%
+    mean_SLA = paste(
+      round(mean(SLA), digits = 1), "±", round(sd(SLA), digits = 1),
+      paste0("(", n(), ")")
+    ), .groups = "drop"
+  ) %>%
   spread(Salinity, mean_SLA, fill = "") %>%
-  kable(digits = 1, format = "html", caption = "Table 2: Specific leaf area (cm2/g) along salinity gradient") %>% 
+  kable(digits = 1, format = "html", caption = "Table 2: Specific leaf area (cm2/g) along salinity gradient") %>%
   kable_styling(bootstrap_options = bo)
-
 ```
 
 ```{r upland-model, message = FALSE}
-
 # Upland data only
 
 # What controls SLA variability for upland (non-shoreline) trees?
@@ -82,11 +86,12 @@ sla %>%
 # DBH-related SLA trend in at least some species.
 # Finally, we account for overall plot-to-plot differences in SLA (for example
 # due to a more fertile or sunny site) by including it as a random effect.
-sla %>% 
+sla %>%
   filter(Elevation == "Upland") -> sla_upland
 
 lmer(SLA ~ Species + Species:DBH + Position + (1 | Plot),
-     data = sla_upland) -> m_upland
+  data = sla_upland
+) -> m_upland
 
 # Pretty-print full model output
 sjPlot::tab_model(m_upland)
@@ -96,13 +101,12 @@ car::Anova(m_upland, type = "III")
 ```
 
 ```{r shoreline-model, message = FALSE}
-
 # Shoreline data only
 
-sla %>% 
+sla %>%
   filter(Elevation == "Shoreline") -> sla_shoreline
 
 lm(SLA ~ Species * DBH + Position + Salinity,
-     data = sla_shoreline) -> m_shoreline
-
+  data = sla_shoreline
+) -> m_shoreline
 ```
