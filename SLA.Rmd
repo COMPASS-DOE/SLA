@@ -375,17 +375,21 @@ mod_signif_raw %>%
   transmute(Species,
     p.value = round(p.value, 3),
     p_pretty = prettyp(p.value),
-    notsignif = p.value >= 0.05) ->
+    weakly_signif = p.value < 0.1, 
+    weak = p.value >= 0.05) ->
   mod_signif
 
 sla %>%
-  left_join(mod_signif, by = "Species") %>%
+  left_join(mod_signif, by = "Species") ->
+  sla_signif
+
+sla_signif %>%
   ggplot(aes(DBH, SLA)) +
   geom_point() +
   facet_wrap(~Species) +
-  geom_smooth(
+  geom_smooth(data = filter(sla_signif, weakly_signif),
     method = "lm", formula = y ~ x,
-    aes(linetype = notsignif), show.legend = FALSE) +
+    aes(linetype = weak), show.legend = FALSE) +
   labs(x = "DBH (cm)", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(strip.text = element_text(face = "italic")) +
   geom_text(data = mod_signif, x = 60, y = 500, aes(label = p_pretty))
