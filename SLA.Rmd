@@ -861,6 +861,7 @@ p_avg_litter <- ggplot(
   aes(yearday, mean_litter, color = Salinity, group = Plot)
 ) +
   geom_line(linewidth = 1, na.rm = TRUE) +
+  scale_color_brewer() +
   labs(
     x = "Day of year",
     y = expression(Leaf ~ litterfall ~ (g ~ m^-2))
@@ -1021,7 +1022,7 @@ bind_rows(mc_lai_sla, mc_lai_litter, mc_lai_both) %>%
   summarise(lai = sum(lai), .groups = "drop") %>%
   ggplot(aes(lai, color = Uncertainty)) +
   geom_density() +
-  facet_wrap(~Plot) +
+  facet_wrap(~Plot, scales = "free_x") +
   labs(
     x = expression(LAI ~ (m^2 ~ m^-2)),
     y = "Density"
