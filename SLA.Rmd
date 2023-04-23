@@ -13,8 +13,6 @@ To do:
 
 * Inventory data - why duplicate tree tag warnings?
 * Have consistent ordering for plots and salinity (low->high?)
-* LAI numbers still seem really high
-* Comparison - pull MODIS LAI? Look at other studies as well
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
@@ -429,6 +427,7 @@ sla_figs
 # SLA by species and canopy position
 ggplot(sla_figs, aes(Species, SLA)) +
   geom_boxplot(aes(fill = Position)) +
+  scale_fill_brewer() + 
   labs(x = "Species", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(axis.text.x = element_text(size = 8))
 
@@ -452,7 +451,7 @@ hsd_species <- HSD.test(aov(SLA ~ effect, data = sla),
 sla %>%
   group_by(Species_code, Position) %>%
   summarise(sd_sla = sd(SLA), .groups = "drop") ->
-xx
+  xx
 
 hsd_species$groups %>%
   mutate(species = rownames(hsd_species$groups)) %>%
@@ -468,6 +467,7 @@ species_position %>%
   geom_text(aes(label = groups), vjust = -1) +
   scale_x_discrete("Species", labels = species_position$Species_code) +
   ylab(expression(SLA ~ (cm^2 ~ g^-1))) +
+  scale_fill_brewer() +
   theme(
     legend.position = c(0.15, 0.8),
     axis.text.x = element_text(size = 8)
@@ -509,6 +509,7 @@ significantly lower SLA than low (shade) leaves.
 # SLA by elevation
 ggplot(sla_figs, aes(Species, SLA)) +
   geom_boxplot(aes(fill = Elevation)) +
+  scale_fill_brewer() +
   labs(x = "Species", y = expression(SLA ~ (cm^2 ~ g^-1))) +
   theme(axis.text.x = element_text(size = 8))
 
@@ -661,7 +662,7 @@ ggsave("figures/fig5_try.png")
 ```
 
 We used `r sum(try_tests$N_try)` species-specific observations from the TRY database 
-(Kattge et al., 2020) to put our SLA observations into a broader context(**Figure 3**).
+(Kattge et al., 2020) to put our SLA observations into a broader context (**Figure 3**).
 In general the SLA distributions in this study were significantly different (P < 0.001) from the
 distributions in TRY; the two exceptions were _Liriodendron tulipifera_(D = `r tryt$LITU$D`, 
 `r tryt$LITU$p_pretty`) and _Nyssa sylvatica_ (D = `r tryt$NYSY$D`, `r tryt$NYSY$p_pretty`).
@@ -859,7 +860,7 @@ p_avg_litter <- ggplot(
   annual_litter,
   aes(yearday, mean_litter, color = Salinity, group = Plot)
 ) +
-  geom_line(size = 1, na.rm = TRUE) +
+  geom_line(linewidth = 1, na.rm = TRUE) +
   labs(
     x = "Day of year",
     y = expression(Leaf ~ litterfall ~ (g ~ m^-2))
@@ -891,7 +892,7 @@ Litter production peaked during the autumn in these northern temperate sites (**
 Mean annual production was `r round(mean(al_plot$alm), 1)` g m^-2^, with an 
 average spatial variability (i.e. between litter traps within a plot) of 
 `r round(mean(al_plot$alm_sd), 1)` g m^-2^. 
-These values were consistent with data from the nearby NEON tower (**Figure 6**). 
+These values were consistent with data from the nearby NEON tower (vertical gray bar in **Figure 6**). 
 Across all plots, _Fagus grandifolia_ dominated, comprising 
 `r round(al_species$FAGR$frac * 100, 0)`% of total mass.
 
