@@ -537,7 +537,7 @@ sla %>%
   left_join(sla, by = "Species") %>%
   nest_by(Species) %>%
   mutate(mod = list(lm(SLA ~ Elevation, data = data))) %>%
-  summarise(tidy(mod)) %>%
+  reframe(Species = Species, tidy(mod)) %>%
   filter(term != "(Intercept)") %>%
   left_join(species_codes, by = "Species") ->
 mel_sp
@@ -582,7 +582,7 @@ sla_sal %>%
   mutate(Salinity2 = if_else(Salinity == "High", "High", "Low")) %>%
   nest_by(Species) %>%
   mutate(mod = list(lm(SLA ~ Salinity2, data = data))) %>%
-  summarise(tidy(mod)) %>%
+  reframe(Species = Species, tidy(mod)) %>%
   filter(term != "(Intercept)") %>%
   left_join(species_codes, by = "Species") ->
 msa_sp
