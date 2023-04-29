@@ -243,18 +243,6 @@ table1 %>%
   ) %>%
   kable_styling(bootstrap_options = bo)
 
-# Table x2: SLA by species and plot
-# sla %>%
-#   group_by(Species, Plot) %>%
-#   summarise(n = n(),
-#             mean_SLA = mean(SLA),
-#             sd_SLA = sd(SLA),
-#             .groups = "drop") %>%
-#   kable(digits = 1, format = "html",
-#         col.names = c("Species", "Plot", "N", "SLA", "s.d."),
-#         caption = "Table x2: Specific leaf area by plot") %>%
-#   kable_styling(bootstrap_options = bo)
-
 # Table x3: SLA by elevation
 sla %>%
   group_by(Elevation) %>%
@@ -334,6 +322,27 @@ Accessing the upper canopy of this tall deciduous forest was difficult: we obtai
 but only `r table_x4$High$n` from high sun leaves.
 Across all our SLA samples, `r tx3$Shoreline$n` were from shoreline trees directly exposed to the
 changing salinity of Muddy Creek, while `r tx3$Upland$n` came from up-slope trees.
+
+## TEMPEST plots only
+
+```{r TEMPEST}
+sla %>%
+  filter(Plot %in% c("Salt", "Fresh", "Control")) %>% 
+  group_by(Species_code, Species) %>%
+  summarise(
+    n = n(),
+    mean_SLA = mean(SLA) %>% round(1),
+    sd_SLA = sd(SLA),
+    .groups = "drop"
+  ) ->
+  table_TEMPEST
+
+kable(table1, 
+      digits = 1, format = "html",
+      col.names = c("Species_code", "Species", "N", "SLA", "s.d."),
+      caption = "Table X: Specific leaf area (cm2/g) by species for TEMPEST plots") %>%
+  kable_styling(bootstrap_options = bo)
+```
 
 
 ## Quality control plots
