@@ -472,7 +472,8 @@ hsd_species$groups %>%
   mutate(species = rownames(hsd_species$groups)) %>%
   separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>%
   mutate(species = forcats::fct_reorder(species, SLA)) %>%
-  left_join(xx, by = c("Species_code", "Position")) ->
+  left_join(xx, by = c("Species_code", "Position")) %>% 
+  arrange(SLA) ->
 species_position
 
 species_position %>%
@@ -821,11 +822,18 @@ litter_2019 %>%
   arrange(yearday) %>%
   group_by(Plot, Species_code) %>%
   mutate(cum_litter = cumsum(Value)) %>%
+  # make a pretty plot name
+  mutate(salinity = substr(Plot, 1, 1),
+         salinity = case_when(salinity == "H" ~ "High",
+                              salinity == "M" ~ "Medium",
+                              salinity == "L" ~ "Low"),
+         Plot = factor(Plot, levels = c("LSLE", "LSME", "LSHE", "MSLE", "MSME", "MSHE", "HSLE", "HSME", "HSHE"))) %>% 
   # ...and plot
   ggplot(aes(yearday, cum_litter, fill = Species_code)) +
   geom_area(position = "stack") +
   facet_wrap(~Plot) +
   coord_cartesian(xlim = c(184, 366)) +
+  geom_text(aes(label = salinity), x = 250, y = 200, size = 2) +
   theme(
     plot.background = element_rect(color = "black"),
     axis.title = element_blank(),
@@ -876,7 +884,7 @@ p_avg_litter <- ggplot(
   aes(yearday, mean_litter, color = Salinity, group = Plot)
 ) +
   geom_line(linewidth = 1, na.rm = TRUE) +
-  scale_color_brewer() +
+  scale_color_brewer(type = "qual") +
   labs(
     x = "Day of year",
     y = expression(Leaf ~ litterfall ~ (g ~ m^-2))
