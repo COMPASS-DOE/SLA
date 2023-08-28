@@ -24,4 +24,4 @@ jobs:
         shell: Rscript {0}
       - name: Render Rmarkdown files
         run: |
-          Rscript -e --verbose rmarkdown::render("SLA.Rmd")
+          Rscript --verbose ./render.R
