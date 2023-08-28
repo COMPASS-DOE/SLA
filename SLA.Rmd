@@ -470,22 +470,22 @@ sla %>%
 
 hsd_species$groups %>%
   mutate(species = rownames(hsd_species$groups)) %>%
-  separate(species, into = c("Species_code", "Position"), sep = "\\.", remove = FALSE) %>%
-  mutate(species = forcats::fct_reorder(species, SLA)) %>%
+  separate(species, into = c("Species_code", "Position"), sep = "\\.") %>%
   left_join(xx, by = c("Species_code", "Position")) %>% 
+  # There is no sun CAGL so add an NA row for it 
+  complete(Species_code, Position) %>% 
   arrange(SLA) ->
 species_position
 
 species_position %>%
-  ggplot(aes(species, SLA, fill = Position)) +
-  geom_col() +
-  geom_errorbar(aes(ymin = SLA - sd_sla, ymax = SLA + sd_sla), alpha = 0.33) +
-  geom_text(aes(label = groups), vjust = -1) +
-  scale_x_discrete("Species", labels = species_position$Species_code) +
-  ylab(expression(SLA ~ (cm^2 ~ g^-1))) +
+  ggplot(aes(Species_code, SLA, group = Position, fill = Position)) +
+  geom_col(position = "dodge") +
+  geom_errorbar(aes(ymin = SLA - sd_sla, ymax = SLA + sd_sla), alpha = 0.33, position = "dodge") +
+  geom_text(aes(label = groups), vjust = -1, position = position_dodge(width = 0.9)) +
+  xlab("Species") + ylab(expression(SLA ~ (cm^2 ~ g^-1))) +
   scale_fill_brewer() +
   theme(
-    legend.position = c(0.15, 0.8),
+    legend.position = c(0.1, 0.9),
     axis.text.x = element_text(size = 8)
   )
 ggsave("figures/fig3-species_position.png")
