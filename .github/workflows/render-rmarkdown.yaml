@@ -1,14 +1,17 @@
 on:
   push:
-    paths:
-      - '**.Rmd'
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
 
-name: Render Rmarkdown files
+name: Render Rmarkdown
 
 jobs:
   render:
     name: Render Rmarkdown files
-    runs-on: macOS-latest
+    runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
