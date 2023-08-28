@@ -1,27 +1,39 @@
 on:
   push:
-    paths:
-      - '**.Rmd'
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
 
-name: Render Rmarkdown files
+name: Render Rmarkdown
 
 jobs:
   render:
     name: Render Rmarkdown files
-    runs-on: macOS-latest
+    runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: r-lib/actions/setup-r@v2
+      - uses: r-lib/actions/setup-pandoc@v2
+      - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          fetch-depth: 0
-      - uses: r-lib/actions/setup-r@v1
-      - uses: r-lib/actions/setup-pandoc@v1
-      - name: Install rmarkdown and remotes packages
-        run: |
-          install.packages(c("remotes", "dplyr", "tidyr", "readr", "rmarkdown", "knitr", "kableExtra", "lubridate", "ggplot2", "cowplot", "ggmap", "agricolae", "broom"))
-        shell: Rscript {0}
+          packages:
+            any::dplyr
+            any::tidyr
+            any::readr
+            any::rmarkdown
+            any::knitr
+            any::kableExtra
+            any::lubridate
+            any::ggplot2
+            any::cowplot
+            any::ggmap
+            any::agricolae
+            any::broom
+
       - name: Render Rmarkdown files
         run: |
-          RMD_PATH=($(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '[.]Rmd$'))
-          Rscript -e 'for (f in commandArgs(TRUE)) if (file.exists(f)) rmarkdown::render(f)' ${RMD_PATH[*]}
+          Rscript --verbose ./render.R
