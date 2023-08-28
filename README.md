@@ -1,6 +1,6 @@
 # SERC specific leaf area analysis 
  
- [![Renders](https://github.com/PNNL-PREMIS/SLA/workflows/render-rmarkdown/badge.svg)](https://github.com/PNNL-PREMIS/SLA/actions)
+[![Renders](https://github.com/COMPASS-DOE/SLA/workflows/render-rmarkdown/badge.svg)](https://github.com/COMPASS-DOE/SLA/actions)
  
  This repository contains code and data supporting "Salinity exposure affects lower-canopy specific leaf area of upland trees in a coastal deciduous forest" submitted to _Forest Ecology and Management_.
  Ben Bond-Lamberty1*, Lillie M. Haddock1, Stephanie C. Pennington1, Uğur Uzay Sezen2, Jessica Shue2, and J. Patrick Megonigal2
