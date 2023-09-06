@@ -1,0 +1,11 @@
+Date: Date of sample collection, YYYY-MM-DD
+Tag: Tree tag number, if available; refers to internal COMPASS tag numbers
+Position: Relative position of sample in tree, low/shade or high/sun
+n_Leaves: Number of leaves sampled
+Leaf_Area_cm2: Total leaf area, cm2
+Leaf_Mass_g: Total leaf mass, g
+SLA: Specific leaf area, cm2/g
+Species_code: Tree species code, following the USDA Plants Database https://plants.usda.gov/home 
+DBH: Tree diameter at 1.37 m above ground, cm
+Elevation: Upland (away from creek) or Shoreline tree?
+Salinity: If shoreline tree, salinity level (Low, Medium, High)

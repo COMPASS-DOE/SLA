@@ -215,6 +215,13 @@ sla %>%
   mutate(Salinity = factor(Salinity, levels = c("Low", "Medium", "High"))) %>%
   select(-starts_with("No_"), Notes.x, Notes.y) ->
 sla
+
+# Write out data for ESS-DIVE submission
+sla %>% 
+  mutate(Date = as.character(mdy(sla$Date)),
+         SLA = round(SLA, 3)) %>% 
+  select(-Notes.x, -Notes.y, -Plot, -Species, -Species_common) %>% 
+  write_csv("./ess-dive/sla_data.csv", na = "-9999")
 ```
 
 # Results
