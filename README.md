@@ -2,6 +2,7 @@
  
   <!-- badges: start -->
   [![render-rmarkdown](https://github.com/COMPASS-DOE/SLA/actions/workflows/render-rmarkdown.yaml/badge.svg)](https://github.com/COMPASS-DOE/SLA/actions/workflows/render-rmarkdown.yaml)
+  [![DOI](https://zenodo.org/badge/200871199.svg)](https://zenodo.org/badge/latestdoi/200871199)
   <!-- badges: end -->
   
  This repository contains code and data supporting "Salinity exposure affects lower-canopy specific leaf area of upland trees in a coastal deciduous forest" submitted to _Forest Ecology and Management_.
